@@ -1,0 +1,33 @@
+@using EbizReports.Host.Services
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Tạo báo cáo mới</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="rd-muted mb-2">
+            Bộ khung “Danh sách phiếu bán hàng”: bố cục + tham số Từ ngày / Đến ngày.
+            Nguồn dữ liệu SQL sẽ khai báo trong designer.
+        </MudText>
+        <MudTextField T="string" Label="Mã báo cáo" @bind-Value="_code" Margin="Margin.Dense"
+                      Variant="Variant.Outlined" Class="mb-1" />
+        <MudTextField T="string" Label="Tên hiển thị" @bind-Value="_name" Margin="Margin.Dense"
+                      Variant="Variant.Outlined" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="Cancel">Huỷ</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   Disabled="@string.IsNullOrWhiteSpace(_code)" OnClick="Create">Tạo</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    private string _code = "danh-sach-phieu-ban-hang";
+    private string _name = "Danh sách phiếu bán hàng";
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Create() => MudDialog.Close(DialogResult.Ok(new NewReportRequest(_code.Trim(), _name.Trim())));
+}

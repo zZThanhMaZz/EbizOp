@@ -1,0 +1,143 @@
+@using EbizReports.Core.Data
+@using EbizReports.Core.Expressions
+@using EbizReports.Core.Model
+
+@* Ô nhập biểu thức kèm gợi ý hàm/trường, kiểm tra cú pháp và xem trước kết quả. *@
+<div class="rd-expr">
+    <MudTextField T="string" Label="@Label" Placeholder="@Placeholder"
+                  Value="@_text" ValueChanged="@OnTextChanged"
+                  Lines="@(Compact ? 1 : 2)" Margin="Margin.Dense" />
+
+    <div class="rd-expr-actions">
+        <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="CheckAsync">Kiểm tra</MudButton>
+        <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="PreviewAsync">Xem kết quả</MudButton>
+        @if (!string.IsNullOrEmpty(_message))
+        {
+            <span class="rd-expr-msg @(_ok ? "ok" : "err")">@_message</span>
+        }
+    </div>
+
+    @if (!Compact)
+    {
+        <div class="rd-expr-panels">
+            <MudText Typo="Typo.caption" Class="rd-muted">Chèn hàm</MudText>
+            <div class="rd-expr-chips">
+                @foreach (var f in ExpressionInspector.Functions)
+                {
+                    var fn = f;
+                    <button type="button" class="rd-expr-chip" title="@fn.Description"
+                            @onclick="() => InsertAsync(fn.Snippet)">@fn.Signature</button>
+                }
+            </div>
+
+            @if (Fields is { Count: > 0 })
+            {
+                <MudText Typo="Typo.caption" Class="rd-muted">Chèn trường / tham số</MudText>
+                <div class="rd-expr-chips">
+                    @foreach (var f in Fields)
+                    {
+                        var fld = f;
+                        <button type="button" class="rd-expr-chip cat-@fld.Category"
+                                title="@(fld.Name + (fld.Sample is null ? "" : " = " + fld.Sample))"
+                                @onclick="() => InsertAsync(fld.Name)">@fld.Name</button>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>Nội dung biểu thức (hai chiều với cha qua <see cref="ValueChanged"/>).</summary>
+    [Parameter] public string? Value { get; set; }
+
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+
+    /// <summary>Định nghĩa report — để lấy tham số mặc định khi xem trước cục bộ.</summary>
+    [Parameter] public ReportDefinition? Definition { get; set; }
+
+    /// <summary>Trường/tham số gợi ý để chèn nhanh.</summary>
+    [Parameter] public IReadOnlyList<ReportFieldInfo>? Fields { get; set; }
+
+    /// <summary>Hàm xem trước do host cung cấp (tính trên dữ liệu thật). Bỏ trống → dùng dữ liệu mẫu cục bộ.</summary>
+    [Parameter] public Func<string, string?>? Preview { get; set; }
+
+    [Parameter] public string Label { get; set; } = "Biểu thức";
+
+    [Parameter] public string Placeholder { get; set; } = "Sum(LineTotal)";
+
+    /// <summary>Chế độ gọn (ẩn bảng gợi ý) cho các ô trong danh sách dài.</summary>
+    [Parameter] public bool Compact { get; set; }
+
+    private string _text = "";
+    private string? _lastValue;
+    private string? _message;
+    private bool _ok;
+
+    protected override void OnParametersSet()
+    {
+        // Chỉ đồng bộ khi cha thực sự đổi giá trị (tránh ghi đè lúc đang nhập).
+        if (Value != _lastValue)
+        {
+            _lastValue = Value;
+            _text = Value ?? "";
+            _message = null;
+        }
+    }
+
+    private async Task OnTextChanged(string v)
+    {
+        _text = v ?? "";
+        _lastValue = _text;
+        _message = null;
+        await ValueChanged.InvokeAsync(_text);
+    }
+
+    private async Task InsertAsync(string snippet)
+    {
+        var text = _text ?? "";
+        if (text.Length > 0 && !char.IsWhiteSpace(text[^1]) && !"([+-*/%<>=!&|,".Contains(text[^1]))
+            text += " ";
+        text += snippet;
+
+        _text = text;
+        _lastValue = text;
+        _message = null;
+        await ValueChanged.InvokeAsync(_text);
+    }
+
+    private Task CheckAsync()
+    {
+        var check = ExpressionInspector.Validate(_text);
+        _ok = check.Ok;
+        _message = check.Ok ? "Cú pháp hợp lệ" : "Lỗi: " + check.Error;
+        return Task.CompletedTask;
+    }
+
+    private Task PreviewAsync()
+    {
+        if (Preview is not null)
+        {
+            try
+            {
+                var v = Preview(_text);
+                _ok = true;
+                _message = "= " + (string.IsNullOrEmpty(v) ? "(rỗng)" : v);
+            }
+            catch (Exception ex)
+            {
+                _ok = false;
+                _message = "Lỗi: " + ex.Message;
+            }
+            return Task.CompletedTask;
+        }
+
+        var data = ExpressionInspector.SampleData(Definition, Fields);
+        var result = ExpressionInspector.Evaluate(_text, data);
+        _ok = result.Ok;
+        _message = result.Ok
+            ? "= " + (string.IsNullOrEmpty(result.Value) ? "(rỗng)" : result.Value)
+            : "Lỗi: " + result.Error;
+        return Task.CompletedTask;
+    }
+}

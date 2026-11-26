@@ -1,0 +1,113 @@
+{
+  "Code": "bao-cao-tong-hop",
+  "Name": "B\u00E1o c\u00E1o t\u1ED5ng h\u1EE3p (c\u00F3 b\u00E1o c\u00E1o con)",
+  "Version": 1,
+  "Paper": {
+    "Size": "A4",
+    "Orientation": "Portrait",
+    "WidthMm": 210,
+    "HeightMm": 297,
+    "Margins": {
+      "Top": 12,
+      "Right": 6,
+      "Bottom": 10,
+      "Left": 6
+    }
+  },
+  "DataSources": [],
+  "Parameters": [],
+  "Sorting": [],
+  "Grouping": [],
+  "Bands": [
+    {
+      "Kind": "PageHeader",
+      "Height": 16,
+      "Items": [
+        {
+          "Kind": "Text",
+          "X": 0,
+          "Y": 0,
+          "W": 160,
+          "H": 8,
+          "Text": "B\u00C1O C\u00C1O T\u1ED4NG H\u1EE2P",
+          "Style": {
+            "Size": 14,
+            "Bold": true,
+            "Italic": false,
+            "Align": "left",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Text",
+          "X": 0,
+          "Y": 8,
+          "W": 160,
+          "H": 5,
+          "Text": "Trang b\u00ECa \u002B b\u00E1o c\u00E1o con nh\u00FAng b\u00EAn d\u01B0\u1EDBi",
+          "Style": {
+            "Size": 8,
+            "Bold": false,
+            "Italic": false,
+            "Align": "left",
+            "Color": "#757575",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Image",
+          "X": 166,
+          "Y": 0,
+          "W": 32,
+          "H": 16,
+          "Style": {
+            "Size": 9,
+            "Bold": false,
+            "Italic": false,
+            "Align": "left",
+            "Border": false
+          },
+          "Src": "data:image/svg\u002Bxml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNjAgODAiPgogIDxyZWN0IHdpZHRoPSIxNjAiIGhlaWdodD0iODAiIHJ4PSIxMCIgZmlsbD0iIzE1NjVDMCIvPgogIDxjaXJjbGUgY3g9IjQ2IiBjeT0iMzIiIHI9IjE2IiBmaWxsPSJub25lIiBzdHJva2U9IiNGRkZGRkYiIHN0cm9rZS13aWR0aD0iNiIvPgogIDxjaXJjbGUgY3g9Ijk2IiBjeT0iMzIiIHI9IjE2IiBmaWxsPSJub25lIiBzdHJva2U9IiNGRkZGRkYiIHN0cm9rZS13aWR0aD0iNiIvPgogIDxwYXRoIGQ9Ik02MiAzMmgxOCIgc3Ryb2tlPSIjRkZGRkZGIiBzdHJva2Utd2lkdGg9IjYiLz4KICA8dGV4dCB4PSI4MCIgeT0iNzAiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZm9udC13ZWlnaHQ9ImJvbGQiCiAgICAgICAgZmlsbD0iI0ZGRkZGRiIgdGV4dC1hbmNob3I9Im1pZGRsZSI\u002BRWJpek9wPC90ZXh0Pgo8L3N2Zz4=",
+          "StyleRules": [],
+          "Locked": false
+        }
+      ]
+    },
+    {
+      "Kind": "ReportFooter",
+      "Height": 100,
+      "Items": [
+        {
+          "Kind": "Subreport",
+          "X": 0,
+          "Y": 0,
+          "W": 198,
+          "H": 98,
+          "Style": {
+            "Size": 9,
+            "Bold": false,
+            "Italic": false,
+            "Align": "left",
+            "Border": false
+          },
+          "Subreport": {
+            "ReportCode": "top-san-pham",
+            "InheritParameters": true,
+            "ShowBorder": true
+          },
+          "StyleRules": [],
+          "Locked": false
+        }
+      ]
+    }
+  ],
+  "Outputs": [
+    "pdf",
+    "xlsx",
+    "csv"
+  ]
+}

@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>EbizReports.Host</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MudBlazor" Version="9.9.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\EbizReports.Core\EbizReports.Core.csproj" />
+    <ProjectReference Include="..\..\src\EbizReports.Data\EbizReports.Data.csproj" />
+    <ProjectReference Include="..\..\src\EbizReports.Rendering\EbizReports.Rendering.csproj" />
+    <ProjectReference Include="..\..\src\EbizReports.Designer\EbizReports.Designer.csproj" />
+  </ItemGroup>
+
+</Project>

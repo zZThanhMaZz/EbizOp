@@ -1,0 +1,508 @@
+{
+  "Code": "hoa-don-ban-hang",
+  "Name": "H\u00F3a \u0111\u01A1n b\u00E1n h\u00E0ng",
+  "Version": 1,
+  "Paper": {
+    "Size": "A5",
+    "Orientation": "Portrait",
+    "WidthMm": 210,
+    "HeightMm": 297,
+    "Margins": {
+      "Top": 8,
+      "Right": 6,
+      "Bottom": 8,
+      "Left": 6
+    }
+  },
+  "DataSources": [],
+  "Parameters": [
+    {
+      "Name": "TieuDe",
+      "Type": "String",
+      "Label": "Ti\u00EAu \u0111\u1EC1 h\u00F3a \u0111\u01A1n",
+      "Required": false,
+      "Default": "H\u00D3A \u0110\u01A0N B\u00C1N H\u00C0NG"
+    }
+  ],
+  "Sorting": [],
+  "Grouping": [],
+  "Bands": [
+    {
+      "Kind": "PageHeader",
+      "Height": 30,
+      "Items": [
+        {
+          "Kind": "Text",
+          "X": 0,
+          "Y": 0,
+          "W": 80,
+          "H": 7,
+          "Text": "{StoreName}",
+          "Style": {
+            "Size": 14,
+            "Bold": true,
+            "Italic": false,
+            "Align": "left",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Text",
+          "X": 0,
+          "Y": 7,
+          "W": 80,
+          "H": 5,
+          "Text": "{StoreAddress}",
+          "Style": {
+            "Size": 7,
+            "Bold": false,
+            "Italic": false,
+            "Align": "left",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Text",
+          "X": 0,
+          "Y": 12,
+          "W": 80,
+          "H": 5,
+          "Text": "\u0110T: {StorePhone}",
+          "Style": {
+            "Size": 7,
+            "Bold": false,
+            "Italic": false,
+            "Align": "left",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Text",
+          "X": 0,
+          "Y": 19,
+          "W": 136,
+          "H": 6,
+          "Text": "{TieuDe}",
+          "Style": {
+            "Size": 12,
+            "Bold": true,
+            "Italic": false,
+            "Align": "center",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Text",
+          "X": 86,
+          "Y": 0,
+          "W": 50,
+          "H": 5,
+          "Text": "S\u1ED1: {BillNo}",
+          "Style": {
+            "Size": 8,
+            "Bold": false,
+            "Italic": false,
+            "Align": "right",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Expression",
+          "X": 86,
+          "Y": 5,
+          "W": 50,
+          "H": 5,
+          "Expression": "Now()",
+          "Format": "dd/MM/yyyy HH:mm",
+          "Style": {
+            "Size": 7,
+            "Bold": false,
+            "Italic": false,
+            "Align": "right",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Text",
+          "X": 0,
+          "Y": 26,
+          "W": 136,
+          "H": 4,
+          "Text": "Kh\u00E1ch h\u00E0ng: {CustomerName}   \u00B7   Thu ng\u00E2n: {CashierName}",
+          "Style": {
+            "Size": 8,
+            "Bold": false,
+            "Italic": false,
+            "Align": "left",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        }
+      ]
+    },
+    {
+      "Kind": "ReportHeader",
+      "Height": 9,
+      "Items": [
+        {
+          "Kind": "Text",
+          "X": 0,
+          "Y": 1,
+          "W": 62,
+          "H": 6,
+          "Text": "T\u00EAn h\u00E0ng",
+          "Style": {
+            "Size": 8,
+            "Bold": true,
+            "Italic": false,
+            "Align": "left",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Text",
+          "X": 62,
+          "Y": 1,
+          "W": 14,
+          "H": 6,
+          "Text": "SL",
+          "Style": {
+            "Size": 8,
+            "Bold": true,
+            "Italic": false,
+            "Align": "center",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Text",
+          "X": 76,
+          "Y": 1,
+          "W": 28,
+          "H": 6,
+          "Text": "\u0110\u01A1n gi\u00E1",
+          "Style": {
+            "Size": 8,
+            "Bold": true,
+            "Italic": false,
+            "Align": "right",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Text",
+          "X": 104,
+          "Y": 1,
+          "W": 32,
+          "H": 6,
+          "Text": "Th\u00E0nh ti\u1EC1n",
+          "Style": {
+            "Size": 8,
+            "Bold": true,
+            "Italic": false,
+            "Align": "right",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Line",
+          "X": 0,
+          "Y": 8,
+          "W": 136,
+          "H": 1,
+          "Style": {
+            "Size": 0.6,
+            "Bold": false,
+            "Italic": false,
+            "Align": "left",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        }
+      ]
+    },
+    {
+      "Kind": "Detail",
+      "Height": 6,
+      "Items": [
+        {
+          "Kind": "Field",
+          "X": 0,
+          "Y": 0,
+          "W": 62,
+          "H": 6,
+          "Binding": "Name",
+          "Style": {
+            "Size": 8,
+            "Bold": false,
+            "Italic": false,
+            "Align": "left",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Field",
+          "X": 62,
+          "Y": 0,
+          "W": 14,
+          "H": 6,
+          "Binding": "Qty",
+          "Format": "0.###",
+          "Style": {
+            "Size": 8,
+            "Bold": false,
+            "Italic": false,
+            "Align": "center",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Field",
+          "X": 76,
+          "Y": 0,
+          "W": 28,
+          "H": 6,
+          "Binding": "UnitPrice",
+          "Format": "N0",
+          "Style": {
+            "Size": 8,
+            "Bold": false,
+            "Italic": false,
+            "Align": "right",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Field",
+          "X": 104,
+          "Y": 0,
+          "W": 32,
+          "H": 6,
+          "Binding": "LineTotal",
+          "Format": "N0",
+          "Style": {
+            "Size": 8,
+            "Bold": false,
+            "Italic": false,
+            "Align": "right",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        }
+      ]
+    },
+    {
+      "Kind": "ReportFooter",
+      "Height": 46,
+      "Items": [
+        {
+          "Kind": "Line",
+          "X": 0,
+          "Y": 2,
+          "W": 136,
+          "H": 1,
+          "Style": {
+            "Size": 0.6,
+            "Bold": false,
+            "Italic": false,
+            "Align": "left",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Text",
+          "X": 76,
+          "Y": 4,
+          "W": 28,
+          "H": 6,
+          "Text": "Khuy\u1EBFn m\u00E3i",
+          "Style": {
+            "Size": 8,
+            "Bold": false,
+            "Italic": false,
+            "Align": "right",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Field",
+          "X": 104,
+          "Y": 4,
+          "W": 32,
+          "H": 6,
+          "Binding": "DiscountTotal",
+          "Format": "N0",
+          "Style": {
+            "Size": 8,
+            "Bold": false,
+            "Italic": false,
+            "Align": "right",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Text",
+          "X": 76,
+          "Y": 10,
+          "W": 28,
+          "H": 6,
+          "Text": "T\u1ED4NG C\u1ED8NG",
+          "Style": {
+            "Size": 10,
+            "Bold": true,
+            "Italic": false,
+            "Align": "right",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Expression",
+          "X": 104,
+          "Y": 10,
+          "W": 32,
+          "H": 6,
+          "Expression": "Sum(LineTotal) - DiscountTotal",
+          "Format": "N0",
+          "Style": {
+            "Size": 10,
+            "Bold": true,
+            "Italic": false,
+            "Align": "right",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "QrCode",
+          "X": 0,
+          "Y": 16,
+          "W": 26,
+          "H": 26,
+          "Text": "{BillNo}",
+          "Style": {
+            "Size": 9,
+            "Bold": false,
+            "Italic": false,
+            "Align": "left",
+            "Border": false
+          },
+          "Symbology": {
+            "Format": "",
+            "Ecc": "M",
+            "ShowText": false,
+            "QuietZone": 0
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Barcode",
+          "X": 32,
+          "Y": 20,
+          "W": 104,
+          "H": 12,
+          "Text": "{BillNo}",
+          "Style": {
+            "Size": 9,
+            "Bold": false,
+            "Italic": false,
+            "Align": "left",
+            "Border": false
+          },
+          "Symbology": {
+            "Format": "Code128",
+            "Ecc": "M",
+            "ShowText": true,
+            "QuietZone": 0
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Text",
+          "X": 0,
+          "Y": 42,
+          "W": 136,
+          "H": 4,
+          "Text": "C\u1EA3m \u01A1n qu\u00FD kh\u00E1ch \u2014 h\u1EB9n g\u1EB7p l\u1EA1i!",
+          "Style": {
+            "Size": 7,
+            "Bold": false,
+            "Italic": false,
+            "Align": "center",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        }
+      ]
+    },
+    {
+      "Kind": "PageFooter",
+      "Height": 6,
+      "Items": [
+        {
+          "Kind": "PageNumber",
+          "X": 0,
+          "Y": 0,
+          "W": 136,
+          "H": 6,
+          "Text": "Trang {Page}/{Pages}",
+          "Style": {
+            "Size": 7,
+            "Bold": false,
+            "Italic": false,
+            "Align": "center",
+            "Color": "#888888",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        }
+      ]
+    }
+  ],
+  "Outputs": [
+    "pdf",
+    "xlsx",
+    "csv"
+  ]
+}

@@ -1,0 +1,361 @@
+{
+  "Code": "ban-hang-theo-nhom",
+  "Name": "B\u00E1n h\u00E0ng theo nh\u00F3m",
+  "Version": 1,
+  "Paper": {
+    "Size": "A4",
+    "Orientation": "Landscape",
+    "WidthMm": 210,
+    "HeightMm": 297,
+    "Margins": {
+      "Top": 10,
+      "Right": 8,
+      "Bottom": 10,
+      "Left": 8
+    }
+  },
+  "DataSources": [],
+  "Parameters": [
+    {
+      "Name": "TuNgay",
+      "Type": "Date",
+      "Label": "T\u1EEB ng\u00E0y",
+      "Required": false,
+      "Default": "2026-01-01"
+    },
+    {
+      "Name": "DenNgay",
+      "Type": "Date",
+      "Label": "\u0110\u1EBFn ng\u00E0y",
+      "Required": false,
+      "Default": "2026-03-31"
+    }
+  ],
+  "Sorting": [],
+  "Grouping": [
+    {
+      "Field": "GroupName",
+      "Sort": "asc",
+      "RepeatHeader": true
+    }
+  ],
+  "Bands": [
+    {
+      "Kind": "PageHeader",
+      "Height": 10,
+      "Items": [
+        {
+          "Kind": "Text",
+          "X": 0,
+          "Y": 0,
+          "W": 150,
+          "H": 7,
+          "Text": "B\u00C1O C\u00C1O B\u00C1N H\u00C0NG THEO NH\u00D3M",
+          "Style": {
+            "Size": 13,
+            "Bold": true,
+            "Italic": false,
+            "Align": "left",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Text",
+          "X": 155,
+          "Y": 2,
+          "W": 24,
+          "H": 5,
+          "Text": "T\u1EEB ng\u00E0y",
+          "Style": {
+            "Size": 8,
+            "Bold": false,
+            "Italic": false,
+            "Align": "right",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Expression",
+          "X": 181,
+          "Y": 0,
+          "W": 46,
+          "H": 7,
+          "Expression": "TuNgay",
+          "Format": "dd/MM/yyyy",
+          "Style": {
+            "Size": 10,
+            "Bold": false,
+            "Italic": false,
+            "Align": "right",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Text",
+          "X": 229,
+          "Y": 2,
+          "W": 14,
+          "H": 5,
+          "Text": "\u0111\u1EBFn",
+          "Style": {
+            "Size": 8,
+            "Bold": false,
+            "Italic": false,
+            "Align": "center",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Expression",
+          "X": 245,
+          "Y": 0,
+          "W": 36,
+          "H": 7,
+          "Expression": "DenNgay",
+          "Format": "dd/MM/yyyy",
+          "Style": {
+            "Size": 10,
+            "Bold": false,
+            "Italic": false,
+            "Align": "right",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        }
+      ]
+    },
+    {
+      "Kind": "GroupHeader",
+      "Height": 8,
+      "Items": [
+        {
+          "Kind": "Text",
+          "X": 0,
+          "Y": 1,
+          "W": 80,
+          "H": 6,
+          "Text": "Nh\u00F3m: {GroupName}",
+          "Style": {
+            "Size": 10,
+            "Bold": true,
+            "Italic": false,
+            "Align": "left",
+            "Color": "#1E5AA8",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        }
+      ]
+    },
+    {
+      "Kind": "Detail",
+      "Height": 6,
+      "Items": [
+        {
+          "Kind": "Field",
+          "X": 4,
+          "Y": 0,
+          "W": 120,
+          "H": 6,
+          "Binding": "Name",
+          "Style": {
+            "Size": 8,
+            "Bold": false,
+            "Italic": false,
+            "Align": "left",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Field",
+          "X": 130,
+          "Y": 0,
+          "W": 20,
+          "H": 6,
+          "Binding": "Qty",
+          "Format": "0.###",
+          "Style": {
+            "Size": 8,
+            "Bold": false,
+            "Italic": false,
+            "Align": "center",
+            "Border": false
+          },
+          "StyleRules": [
+            {
+              "When": "Qty \u003E= 5",
+              "Bold": true,
+              "Background": "#FFF3E0"
+            }
+          ],
+          "Locked": false
+        },
+        {
+          "Kind": "Field",
+          "X": 190,
+          "Y": 0,
+          "W": 40,
+          "H": 6,
+          "Binding": "LineTotal",
+          "Format": "N0",
+          "Style": {
+            "Size": 8,
+            "Bold": false,
+            "Italic": false,
+            "Align": "right",
+            "Border": false
+          },
+          "StyleRules": [
+            {
+              "When": "LineTotal \u003E= 1000000",
+              "Bold": true,
+              "Color": "#C62828"
+            }
+          ],
+          "Locked": false
+        }
+      ]
+    },
+    {
+      "Kind": "GroupFooter",
+      "Height": 7,
+      "Items": [
+        {
+          "Kind": "Text",
+          "X": 130,
+          "Y": 0,
+          "W": 60,
+          "H": 6,
+          "Text": "C\u1ED9ng nh\u00F3m:",
+          "Style": {
+            "Size": 8,
+            "Bold": true,
+            "Italic": false,
+            "Align": "right",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Expression",
+          "X": 190,
+          "Y": 0,
+          "W": 40,
+          "H": 6,
+          "Expression": "Sum(LineTotal)",
+          "Format": "N0",
+          "Style": {
+            "Size": 8,
+            "Bold": true,
+            "Italic": false,
+            "Align": "right",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        }
+      ]
+    },
+    {
+      "Kind": "ReportFooter",
+      "Height": 74,
+      "Items": [
+        {
+          "Kind": "Line",
+          "X": 0,
+          "Y": 1,
+          "W": 260,
+          "H": 1,
+          "Style": {
+            "Size": 0.8,
+            "Bold": false,
+            "Italic": false,
+            "Align": "left",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Text",
+          "X": 130,
+          "Y": 3,
+          "W": 60,
+          "H": 6,
+          "Text": "T\u1ED4NG DOANH THU:",
+          "Style": {
+            "Size": 10,
+            "Bold": true,
+            "Italic": false,
+            "Align": "right",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Expression",
+          "X": 190,
+          "Y": 3,
+          "W": 40,
+          "H": 6,
+          "Expression": "Sum(LineTotal)",
+          "Format": "N0",
+          "Style": {
+            "Size": 10,
+            "Bold": true,
+            "Italic": false,
+            "Align": "right",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Chart",
+          "X": 0,
+          "Y": 12,
+          "W": 260,
+          "H": 60,
+          "Style": {
+            "Size": 9,
+            "Bold": false,
+            "Italic": false,
+            "Align": "left",
+            "Border": false
+          },
+          "Chart": {
+            "Type": "bar",
+            "Category": "Name",
+            "Value": "LineTotal",
+            "Aggregate": "sum",
+            "Legend": "none",
+            "ShowValues": true,
+            "Title": "Doanh thu theo s\u1EA3n ph\u1EA9m",
+            "Horizontal": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        }
+      ]
+    }
+  ],
+  "Outputs": [
+    "pdf",
+    "xlsx",
+    "csv"
+  ]
+}

@@ -1,0 +1,32 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net9.0</TargetFrameworks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>EbizReports.Rendering</AssemblyName>
+    <RootNamespace>EbizReports.Rendering</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="QuestPDF" Version="2026.8.0" />
+    <PackageReference Include="MiniExcel" Version="1.46.0" />
+    <PackageReference Include="ZXing.Net" Version="0.16.11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\EbizReports.Core\EbizReports.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\..\LatoFont\Lato-Regular.ttf" Link="Fonts\Lato-Regular.ttf" />
+    <EmbeddedResource Include="..\..\..\LatoFont\Lato-Bold.ttf" Link="Fonts\Lato-Bold.ttf" />
+    <EmbeddedResource Include="..\..\..\LatoFont\Lato-Italic.ttf" Link="Fonts\Lato-Italic.ttf" />
+    <EmbeddedResource Include="..\..\..\LatoFont\Lato-BoldItalic.ttf" Link="Fonts\Lato-BoldItalic.ttf" />
+    <EmbeddedResource Include="..\..\..\LatoFont\Lato-Medium.ttf" Link="Fonts\Lato-Medium.ttf" />
+    <EmbeddedResource Include="..\..\..\LatoFont\Lato-SemiBold.ttf" Link="Fonts\Lato-SemiBold.ttf" />
+  </ItemGroup>
+
+
+</Project>

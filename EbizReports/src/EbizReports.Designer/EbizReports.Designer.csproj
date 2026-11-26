@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net9.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>EbizReports.Designer</AssemblyName>
+    <RootNamespace>EbizReports.Designer</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MudBlazor" Version="9.9.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\EbizReports.Core\EbizReports.Core.csproj" />
+    <ProjectReference Include="..\EbizReports.Rendering\EbizReports.Rendering.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,133 @@
+{
+  "Code": "top-san-pham",
+  "Name": "Top s\u1EA3n ph\u1EA9m b\u00E1n ch\u1EA1y",
+  "Version": 1,
+  "Paper": {
+    "Size": "A4",
+    "Orientation": "Portrait",
+    "WidthMm": 210,
+    "HeightMm": 297,
+    "Margins": {
+      "Top": 12,
+      "Right": 6,
+      "Bottom": 10,
+      "Left": 6
+    }
+  },
+  "DataSources": [],
+  "Parameters": [],
+  "Sorting": [],
+  "Grouping": [],
+  "Bands": [
+    {
+      "Kind": "PageHeader",
+      "Height": 14,
+      "Items": [
+        {
+          "Kind": "Text",
+          "X": 0,
+          "Y": 0,
+          "W": 198,
+          "H": 8,
+          "Text": "TOP S\u1EA2N PH\u1EA8M B\u00C1N CH\u1EA0Y",
+          "Style": {
+            "Size": 14,
+            "Bold": true,
+            "Italic": false,
+            "Align": "left",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Text",
+          "X": 0,
+          "Y": 8,
+          "W": 198,
+          "H": 5,
+          "Text": "Danh s\u00E1ch s\u1EA3n ph\u1EA9m k\u00E8m s\u1ED1 l\u01B0\u1EE3ng v\u00E0 doanh thu",
+          "Style": {
+            "Size": 8,
+            "Bold": false,
+            "Italic": false,
+            "Align": "left",
+            "Color": "#757575",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        }
+      ]
+    },
+    {
+      "Kind": "ReportHeader",
+      "Height": 72,
+      "Items": [
+        {
+          "Kind": "Table",
+          "X": 0,
+          "Y": 0,
+          "W": 198,
+          "H": 70,
+          "Style": {
+            "Size": 9,
+            "Bold": false,
+            "Italic": false,
+            "Align": "left",
+            "Border": false
+          },
+          "Table": {
+            "Columns": [
+              {
+                "Header": "T\u00EAn h\u00E0ng",
+                "Width": 96,
+                "Binding": "Name",
+                "Align": "left",
+                "Aggregate": "none"
+              },
+              {
+                "Header": "Nh\u00F3m",
+                "Width": 46,
+                "Binding": "GroupName",
+                "Align": "left",
+                "Aggregate": "none"
+              },
+              {
+                "Header": "SL",
+                "Width": 18,
+                "Binding": "Qty",
+                "Format": "N0",
+                "Align": "center",
+                "Aggregate": "sum"
+              },
+              {
+                "Header": "Doanh thu",
+                "Width": 38,
+                "Binding": "LineTotal",
+                "Format": "N0",
+                "Align": "right",
+                "Aggregate": "sum"
+              }
+            ],
+            "RowHeight": 7,
+            "ShowHeader": true,
+            "Borders": true,
+            "Zebra": true,
+            "HeaderBackground": "#1E5AA8",
+            "Footer": true,
+            "MaxRows": 0,
+            "Scope": "group"
+          },
+          "StyleRules": [],
+          "Locked": false
+        }
+      ]
+    }
+  ],
+  "Outputs": [
+    "pdf",
+    "xlsx",
+    "csv"
+  ]
+}

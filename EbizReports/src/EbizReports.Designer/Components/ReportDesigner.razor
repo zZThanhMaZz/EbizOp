@@ -1,0 +1,3042 @@
+@using System.Globalization
+@using EbizReports.Core.Charts
+@using EbizReports.Core.Data
+@using EbizReports.Rendering
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<div class="rd-root">
+    <div class="rd-mtabs" role="tablist">
+        <button type="button" role="tab" class="rd-mtab @(_mainTab == "params" ? "on" : "")"
+                @onclick='() => _mainTab = "params"'>Thông số</button>
+        <button type="button" role="tab" class="rd-mtab @(_mainTab == "design" ? "on" : "")"
+                @onclick='() => _mainTab = "design"'>Thiết kế mẫu</button>
+        <button type="button" role="tab" class="rd-mtab @(_mainTab == "preview" ? "on" : "")"
+                @onclick="OpenPreviewTabAsync">Xem trước</button>
+    </div>
+
+    @if (_mainTab == "design")
+    {
+    <MudPaper Class="rd-toolbar rd-ribbon" Elevation="1">
+        <div class="rd-rhead">
+            <div class="rd-rtabs2" role="tablist">
+                <button type="button" role="tab" class="rd-rtab2 @(_ribbonTab == "home" ? "on" : "")"
+                        @onclick='() => _ribbonTab = "home"'>Trang chủ</button>
+                <button type="button" role="tab" class="rd-rtab2 @(_ribbonTab == "layout" ? "on" : "")"
+                        @onclick='() => _ribbonTab = "layout"'>Bố cục</button>
+                <button type="button" role="tab" class="rd-rtab2 @(_ribbonTab == "format" ? "on" : "")"
+                        @onclick='() => _ribbonTab = "format"'>Định dạng</button>
+            </div>
+            <span class="rd-spacer"></span>
+            <MudText Typo="Typo.caption" Class="rd-muted">
+                @Definition.Code · @SelectionInfo()
+            </MudText>
+        </div>
+
+        <div class="rd-rbody">
+            @if (_ribbonTab == "home")
+            {
+                <div class="rd-rgroup">
+                    <div class="rd-ritems">
+                        <MudIconButton Icon="@Icons.Material.Filled.Undo" Size="Size.Small" aria-label="Hoàn tác (Ctrl+Z)"
+                                       Disabled="@(_undo.Count == 0)" OnClick="UndoAsync" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Redo" Size="Size.Small" aria-label="Làm lại (Ctrl+Y)"
+                                       Disabled="@(_redo.Count == 0)" OnClick="RedoAsync" />
+                    </div>
+                    <div class="rd-rlabel">Lịch sử</div>
+                </div>
+                <div class="rd-rgroup">
+                    <div class="rd-ritems">
+                        <MudButton OnClick="SaveAsync" Color="Color.Primary" Size="Size.Small">Lưu JSON</MudButton>
+                        <label class="rd-filebtn">
+                            <InputFile OnChange="LoadAsync" accept=".json" />
+                            <span class="rd-filebtn-label">Mở JSON</span>
+                        </label>
+                        <MudButton OnClick="PreviewAsync" Color="Color.Secondary" Size="Size.Small"
+                                   Disabled="@(RenderPreview is null)">Xem PDF</MudButton>
+                        <MudButton OnClick="PreviewPagesAsync" Color="Color.Primary" Size="Size.Small"
+                                   Disabled="@(RenderPreviewPages is null)">Xem trước</MudButton>
+                    </div>
+                    <div class="rd-rlabel">Tệp &amp; xem trước</div>
+                </div>
+            }
+            else if (_ribbonTab == "layout")
+            {
+                <div class="rd-rgroup">
+                    <div class="rd-ritems">
+                        <MudSwitch T="bool" @bind-Value="_snapOn" @bind-Value:after="ApplySnapAsync"
+                                   Size="Size.Small" Color="Color.Primary" Label="Snap" Class="rd-switch" />
+                        <MudSelect T="double" @bind-Value="_snapStep" @bind-Value:after="ApplySnapAsync"
+                                   Dense="true" Variant="Variant.Outlined" Style="max-width:110px" Label="Bước">
+                            <MudSelectItem T="double" Value="@(0.5)">0.5 mm</MudSelectItem>
+                            <MudSelectItem T="double" Value="@(1.0)">1 mm</MudSelectItem>
+                            <MudSelectItem T="double" Value="@(2.0)">2 mm</MudSelectItem>
+                            <MudSelectItem T="double" Value="@(5.0)">5 mm</MudSelectItem>
+                            <MudSelectItem T="double" Value="@(10.0)">10 mm</MudSelectItem>
+                        </MudSelect>
+                        <MudSwitch T="bool" @bind-Value="_gridOn" Size="Size.Small" Color="Color.Primary" Label="Lưới" Class="rd-switch" />
+                        <MudSwitch T="bool" @bind-Value="_guidesOn" @bind-Value:after="ApplySnapAsync"
+                                   Size="Size.Small" Color="Color.Primary" Label="Dóng" Class="rd-switch" />
+                    </div>
+                    <div class="rd-rlabel">Lưới &amp; dóng</div>
+                </div>
+                <div class="rd-rgroup">
+                    <div class="rd-ritems">
+                        <button type="button" class="rd-rbtn" title="Vừa khung xem" @onclick="ZoomFitAsync">Vừa khung</button>
+                    </div>
+                    <div class="rd-rlabel">Hiển thị</div>
+                </div>
+            }
+            else
+            {
+                <div class="rd-rgroup">
+                    <div class="rd-ritems">
+                        <button type="button" class="rd-rbtn @(RibbonBold ? "on" : "")" title="Đậm"
+                                disabled="@(!HasStyleTarget)" @onclick="RibbonBoldAsync"><b>B</b></button>
+                        <button type="button" class="rd-rbtn @(RibbonItalic ? "on" : "")" title="Nghiêng"
+                                disabled="@(!HasStyleTarget)" @onclick="RibbonItalicAsync"><i>I</i></button>
+                        <button type="button" class="rd-rbtn @(RibbonBorder ? "on" : "")" title="Khung"
+                                disabled="@(!HasStyleTarget)" @onclick="RibbonBorderAsync">▢</button>
+                    </div>
+                    <div class="rd-rlabel">Kiểu chữ</div>
+                </div>
+                <div class="rd-rgroup">
+                    <div class="rd-ritems">
+                        <MudNumericField T="double" Value="RibbonSize" ValueChanged="RibbonSizeAsync"
+                                         Margin="Margin.Dense" Variant="Variant.Outlined" Style="max-width:96px"
+                                         Label="Cỡ chữ (pt)" Disabled="@(!HasStyleTarget)" />
+                    </div>
+                    <div class="rd-rlabel">Cỡ chữ</div>
+                </div>
+                <div class="rd-rgroup">
+                    <div class="rd-ritems">
+                        <button type="button" class="rd-rbtn @(RibbonAlign == "left" ? "on" : "")" aria-label="Lề trái"
+                                disabled="@(!HasStyleTarget)" @onclick='() => RibbonAlignAsync("left")'>Trái</button>
+                        <button type="button" class="rd-rbtn @(RibbonAlign == "center" ? "on" : "")" aria-label="Lề giữa"
+                                disabled="@(!HasStyleTarget)" @onclick='() => RibbonAlignAsync("center")'>Giữa</button>
+                        <button type="button" class="rd-rbtn @(RibbonAlign == "right" ? "on" : "")" aria-label="Lề phải"
+                                disabled="@(!HasStyleTarget)" @onclick='() => RibbonAlignAsync("right")'>Phải</button>
+                    </div>
+                    <div class="rd-rlabel">Canh lề</div>
+                </div>
+                <div class="rd-rgroup">
+                    <div class="rd-ritems">
+                        <MudTextField T="string" Value="RibbonColor" ValueChanged="RibbonColorAsync" Margin="Margin.Dense"
+                                      Variant="Variant.Outlined" Style="max-width:120px" Label="Màu chữ" Placeholder="#RRGGBB"
+                                      Disabled="@(!HasStyleTarget)" />
+                    </div>
+                    <div class="rd-rlabel">Màu</div>
+                </div>
+            }
+        </div>
+    </MudPaper>
+
+    <div class="rd-body">
+        <!-- LEFT: bands & items -->
+        <MudPaper Class="rd-left" Elevation="1">
+            <MudText Typo="Typo.subtitle2" Class="rd-h">Hộp công cụ</MudText>
+            <MudText Typo="Typo.caption" Class="rd-muted">
+                Chọn band ở canvas rồi bấm để thêm điều khiển.
+            </MudText>
+            <div class="rd-toolbox">
+                @foreach (var t in ToolboxItems())
+                {
+                    <button type="button" class="rd-tb" title="@t.Title" @onclick="() => t.Add()">
+                        <span class="rd-tb-ico">@t.Icon</span>
+                        <span class="rd-tb-lbl">@t.Label</span>
+                    </button>
+                }
+            </div>
+            <MudDivider Class="my-3" />
+
+            <MudText Typo="Typo.subtitle2" Class="rd-h">Cấu trúc</MudText>
+            <div class="rd-tree">
+                @for (var b = 0; b < Definition.Bands.Count; b++)
+                {
+                    var band = Definition.Bands[b];
+                    var bb = b;
+                    <div class="rd-tnode @(ReferenceEquals(band, _band) ? "sel" : "")" @onclick="() => SelectBand(bb)">
+                        <span class="rd-kind">@band.Kind</span>
+                        <span class="rd-count">@band.Items.Count</span>
+                    </div>
+                    @if (ReferenceEquals(band, _band))
+                    {
+                        @for (var i = 0; i < band.Items.Count; i++)
+                        {
+                            var item = band.Items[i];
+                            var bi = bb;
+                            var ii = i;
+                            <div class="rd-inode @(IsPrimary(item) ? "sel" : "")" @onclick="() => SelectItem(bi, ii, false)">
+                                <span class="rd-kind">@item.Kind</span>
+                                <span class="rd-lbl">@ItemLabel(item)</span>
+                                @if (!string.IsNullOrEmpty(item.Group))
+                                {
+                                    <span class="rd-badge">nhóm</span>
+                                }
+                                @if (item.Locked)
+                                {
+                                    <span class="rd-badge">🔒</span>
+                                }
+                            </div>
+                        }
+                    }
+                }
+            </div>
+
+            <MudDivider Class="my-2" />
+            <MudText Typo="Typo.subtitle2" Class="rd-h">Band</MudText>
+            <div class="rd-bandctl">
+                <MudButton Size="Size.Small" Variant="Variant.Outlined"
+                           Disabled="@(_band is null)" OnClick="DuplicateBandAsync">Nhân bản band</MudButton>
+                <MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" Size="Size.Small" aria-label="Band lên"
+                               Disabled="@(_bandIdx <= 0)" OnClick="() => MoveBandAsync(-1)" />
+                <MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" Size="Size.Small" aria-label="Band xuống"
+                               Disabled="@(_bandIdx < 0 || _bandIdx >= Definition.Bands.Count - 1)" OnClick="() => MoveBandAsync(1)" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" aria-label="Xoá band"
+                               Color="Color.Error" Disabled="@(_band is null)" OnClick="RemoveBandAsync" />
+            </div>
+            @if (MissingBandKinds().Any())
+            {
+                <div class="rd-tools">
+                    @foreach (var k in MissingBandKinds())
+                    {
+                        var kk = k;
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined"
+                                   OnClick="() => AddBandAsync(kk)">+ @kk</MudButton>
+                    }
+                </div>
+            }
+
+            <MudDivider Class="my-2" />
+            <MudText Typo="Typo.subtitle2" Class="rd-h">Thao tác</MudText>
+            <div class="rd-tools">
+                <MudButton Size="Size.Small" Variant="Variant.Outlined" Disabled="@(_sel.Count == 0)"
+                           OnClick="CopyButtonAsync">Sao chép</MudButton>
+                <MudButton Size="Size.Small" Variant="Variant.Outlined" Disabled="@(_sel.Count == 0)"
+                           OnClick="CutButtonAsync">Cắt</MudButton>
+                <MudButton Size="Size.Small" Variant="Variant.Outlined" Disabled="@(_clipboard.Count == 0 || _band is null)"
+                           OnClick="PasteButtonAsync">Dán</MudButton>
+            </div>
+            @if (_item != null)
+            {
+                <MudButton Size="Size.Small" Color="Color.Error" Class="mt-2" OnClick="RemoveSelectedAsync">Xoá đã chọn</MudButton>
+            }
+        </MudPaper>
+
+        <!-- CENTER: rulers + canvas -->
+        <div class="rd-center" @ref="_canvasRef">
+            <div class="rd-cscroll">
+            <div class="rd-stage" style="zoom:@N(_zoom)">
+                <div class="rd-corner"></div>
+                <div class="rd-ruler rd-ruler-h" style="width:@(N(PaperW * MmToPx))px">
+                    @foreach (var mm in MajorTicks(PaperW))
+                    {
+                        <span class="rd-tick" style="left:@(N(mm * MmToPx))px">@mm</span>
+                    }
+                </div>
+                <div class="rd-ruler rd-ruler-v" style="height:@(N(PaperH * MmToPx))px">
+                    @foreach (var mm in MajorTicks(PaperH))
+                    {
+                        <span class="rd-tick" style="top:@(N(mm * MmToPx))px">@mm</span>
+                    }
+                </div>
+                <div class="rd-paperwrap">
+                    <div class="rd-paper @(_gridOn ? "grid-on" : "")"
+                         data-wmm="@N(PaperW)"
+                         data-hmm="@N(PaperH)"
+                         style="@PaperStyle()">
+                        @for (var b = 0; b < Definition.Bands.Count; b++)
+                        {
+                            var band = Definition.Bands[b];
+                            var bb = b;
+                            <div class="rd-band @(ReferenceEquals(band, _band) ? "sel" : "")"
+                                 data-band="@bb"
+                                 style="height:@(N(band.Height * MmToPx))px"
+                                 @ondragover:preventDefault
+                                 @ondrop="() => OnFieldDropAsync(bb)"
+                                 @onclick="() => SelectBand(bb)">
+                                <div class="rd-bandhead">
+                                    <span class="rd-bandtag">@band.Kind</span>
+                                    <span class="rd-bandh">@(N(band.Height)) mm</span>
+                                </div>
+                                <div class="rd-band-rz" title="Kéo để đổi chiều cao band"></div>
+                                @for (var i = 0; i < band.Items.Count; i++)
+                                {
+                                    var item = band.Items[i];
+                                    var ii = i;
+                                    <div class="rd-item @(IsSelected(item) ? "sel" : "") @(IsPrimary(item) ? "primary" : "") @(item.Locked ? "locked" : "")"
+                                         data-band="@bb" data-idx="@ii"
+                                         data-x="@N(item.X)" data-y="@N(item.Y)" data-w="@N(item.W)" data-h="@N(item.H)"
+                                         data-group="@(item.Group ?? "")" data-locked="@(item.Locked ? "1" : "0")"
+                                         style="@ItemStyle(item)"
+                                         title="@ItemLabel(item)"
+                                         @onclick:stopPropagation="true">
+                                        <span class="rd-itemtxt">@ItemPreview(item)</span>
+                                        @if (Symbology.IsSymbology(item.Kind))
+                                        {
+                                            var svg = SymbolSvg(item);
+                                            if (svg != null)
+                                            {
+                                                <span class="rd-sym">@((MarkupString)svg)</span>
+                                            }
+                                        }
+                                        else if (item.Kind == ItemKind.Chart)
+                                        {
+                                            <span class="rd-chart">@((MarkupString)ChartSvg(item))</span>
+                                        }
+                                        else if (item.Kind == ItemKind.Table)
+                                        {
+                                            <span class="rd-table">@((MarkupString)TablePreviewHtml(item))</span>
+                                        }
+                                        else if (item.Kind == ItemKind.Image)
+                                        {
+                                            <span class="rd-img">
+                                                @if (IsDataImage(item.Src))
+                                                {
+                                                    <img src="@item.Src" alt="Ảnh" />
+                                                }
+                                                else
+                                                {
+                                                    <span class="rd-img-ph">
+                                                        <span class="rd-img-ico">🖼</span>
+                                                        <span class="rd-img-name">@ImageLabel(item.Src)</span>
+                                                    </span>
+                                                }
+                                            </span>
+                                        }
+                                        else if (item.Kind == ItemKind.Subreport)
+                                        {
+                                            <span class="rd-sub">
+                                                <span class="rd-sub-tag">Subreport</span>
+                                                <span class="rd-sub-code">@(item.Subreport?.ReportCode is { Length: > 0 } sc ? sc : "(chưa chọn)")</span>
+                                            </span>
+                                        }
+                                        @if (item.Locked)
+                                        {
+                                            <span class="rd-lock">🔒</span>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(item.VisibleWhen) || item.StyleRules.Count > 0)
+                                        {
+                                            <span class="rd-cond" title="Có điều kiện hiển thị / định dạng">ĐK</span>
+                                        }
+                                        @if (IsPrimary(item) && !item.Locked)
+                                        {
+                                            @foreach (var dir in Handles)
+                                            {
+                                                <div class="rd-rz rd-rz-@dir" data-dir="@dir"></div>
+                                            }
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                        <div class="rd-guides"></div>
+                    </div>
+                </div>
+            </div>
+            </div>
+            <div class="rd-zoombar" role="toolbar" aria-label="Thu phóng">
+                <button type="button" class="rd-zbtn" aria-label="Thu nhỏ" title="Thu nhỏ" @onclick="() => ZoomBy(1 / 1.25)">−</button>
+                <button type="button" class="rd-zval" title="Đặt lại 100%" @onclick="() => SetZoom(1)">@ZoomPercent%</button>
+                <button type="button" class="rd-zbtn" aria-label="Phóng to" title="Phóng to" @onclick="() => ZoomBy(1.25)">+</button>
+                <span class="rd-zsep"></span>
+                @foreach (var z in ZoomPresets)
+                {
+                    var zz = z;
+                    <button type="button" class="rd-zpreset @(Math.Abs(_zoom - zz) < 0.001 ? "sel" : "")"
+                            @onclick="() => SetZoom(zz)">@((int)Math.Round(zz * 100))%</button>
+                }
+                <span class="rd-zsep"></span>
+                <button type="button" class="rd-zfit" title="Vừa khung xem" @onclick="ZoomFitAsync">Vừa khung</button>
+            </div>
+
+            @if (_ctxOpen)
+            {
+                <div class="rd-ctx-backdrop" @onclick="CloseCtx"
+                     @oncontextmenu="CloseCtx" @oncontextmenu:preventDefault @oncontextmenu:stopPropagation></div>
+                <div class="rd-ctx" role="menu" style="left:@N(_ctxX)px;top:@N(_ctxY)px">
+                    <div class="rd-ctx-title">@CtxTitle()</div>
+
+                    <button type="button" role="menuitem" class="rd-ctx-item" disabled="@(!CtxHasSel)"
+                            @onclick="CtxCopyAsync">Sao chép <kbd>Ctrl+C</kbd></button>
+                    <button type="button" role="menuitem" class="rd-ctx-item" disabled="@(!CtxHasSel)"
+                            @onclick="CtxCutAsync">Cắt <kbd>Ctrl+X</kbd></button>
+                    <button type="button" role="menuitem" class="rd-ctx-item" disabled="@(!CtxHasClip)"
+                            @onclick="CtxPasteAsync">Dán <kbd>Ctrl+V</kbd></button>
+                    <button type="button" role="menuitem" class="rd-ctx-item" disabled="@(!CtxHasSel)"
+                            @onclick="CtxDuplicateAsync">Nhân bản <kbd>Ctrl+D</kbd></button>
+
+                    <div class="rd-ctx-sep"></div>
+                    <div class="rd-ctx-sec">Căn chỉnh</div>
+                    <div class="rd-ctx-grid">
+                        <button type="button" role="menuitem" aria-label="Canh trái" disabled="@(_sel.Count < 2)"
+                                @onclick="() => CtxAlignAsync(AlignMode.Left)">Trái</button>
+                        <button type="button" role="menuitem" aria-label="Canh giữa ngang" disabled="@(_sel.Count < 2)"
+                                @onclick="() => CtxAlignAsync(AlignMode.CenterH)">Giữa</button>
+                        <button type="button" role="menuitem" aria-label="Canh phải" disabled="@(_sel.Count < 2)"
+                                @onclick="() => CtxAlignAsync(AlignMode.Right)">Phải</button>
+                        <button type="button" role="menuitem" aria-label="Canh trên" disabled="@(_sel.Count < 2)"
+                                @onclick="() => CtxAlignAsync(AlignMode.Top)">Trên</button>
+                        <button type="button" role="menuitem" aria-label="Canh giữa dọc" disabled="@(_sel.Count < 2)"
+                                @onclick="() => CtxAlignAsync(AlignMode.Middle)">Giữa↕</button>
+                        <button type="button" role="menuitem" aria-label="Canh dưới" disabled="@(_sel.Count < 2)"
+                                @onclick="() => CtxAlignAsync(AlignMode.Bottom)">Dưới</button>
+                    </div>
+
+                    <div class="rd-ctx-sec">Phân bố</div>
+                    <div class="rd-ctx-grid two">
+                        <button type="button" role="menuitem" aria-label="Phân bố ngang" disabled="@(_sel.Count < 3)"
+                                @onclick="() => CtxDistributeAsync(true)">Ngang</button>
+                        <button type="button" role="menuitem" aria-label="Phân bố dọc" disabled="@(_sel.Count < 3)"
+                                @onclick="() => CtxDistributeAsync(false)">Dọc</button>
+                    </div>
+
+                    <div class="rd-ctx-sep"></div>
+                    <button type="button" role="menuitem" class="rd-ctx-item" disabled="@(!CtxHasSel)"
+                            @onclick="CtxGroupAsync">Nhóm <kbd>Ctrl+G</kbd></button>
+                    <button type="button" role="menuitem" class="rd-ctx-item" disabled="@(!CtxHasGroup)"
+                            @onclick="CtxUngroupAsync">Bỏ nhóm</button>
+                    <button type="button" role="menuitem" class="rd-ctx-item" disabled="@(!CtxHasSel)"
+                            @onclick="CtxLockAsync">@(CtxAllLocked ? "Mở khoá vị trí" : "Khoá vị trí")</button>
+
+                    <div class="rd-ctx-sep"></div>
+                    <button type="button" role="menuitem" class="rd-ctx-item danger" disabled="@(!CtxHasSel)"
+                            @onclick="CtxDeleteAsync">Xoá <kbd>Del</kbd></button>
+                </div>
+            }
+        </div>
+
+        <!-- RIGHT: properties (kiểu DevExpress) -->
+        <MudPaper Class="rd-right" Elevation="1">
+            <div class="rd-rtabs">
+                <button type="button" class="rd-rtab @(_rightTab == "fields" ? "on" : "")"
+                        @onclick='() => _rightTab = "fields"'>Trường dữ liệu (@FieldList().Count)</button>
+                <button type="button" class="rd-rtab @(_rightTab == "props" ? "on" : "")"
+                        @onclick='() => _rightTab = "props"'>Thuộc tính</button>
+            </div>
+
+            @if (_rightTab == "fields")
+            {
+                <MudTextField T="string" Placeholder="Tìm trường..." Margin="Margin.Dense" Class="rd-fieldsearch"
+                              @bind-Value="_fieldFilter" />
+                @if (FieldList().Count == 0)
+                {
+                    <MudText Typo="Typo.caption" Class="rd-muted">Chưa có trường dữ liệu.</MudText>
+                }
+                else
+                {
+                    <div class="rd-fields">
+                        @foreach (var f in FieldList())
+                        {
+                            var ff = f;
+                            <div class="rd-field cat-@f.Category" draggable="true"
+                                 title="@(f.Sample is null ? f.Name : $"{f.Name} = {f.Sample}")"
+                                 @ondragstart="() => OnFieldDragStart(ff)"
+                                 @onclick="() => AddFieldItemAsync(ff.Name, _bandIdx)">
+                                <span class="rd-field-name">@f.Name</span>
+                                <span class="rd-field-cat">@FieldCatLabel(f.Category)</span>
+                            </div>
+                        }
+                    </div>
+                    <MudText Typo="Typo.caption" Class="rd-muted">Bấm hoặc kéo vào band để thêm Field.</MudText>
+                }
+            }
+            else
+            {
+            <MudText Typo="Typo.subtitle2" Class="rd-h">
+                Thuộc tính@(_item != null ? $" — {_item.Kind}" : _band != null ? $" — band {_band.Kind}" : " báo cáo")
+            </MudText>
+            <ReportPropertyGrid Rows="PropertyRows()" Changed="OnPropertyChanged" />
+
+            @if (Definition.Parameters.Count > 0)
+            {
+                <MudDivider Class="my-3" />
+                <MudText Typo="Typo.subtitle2" Class="rd-h">Tham số khi chạy</MudText>
+                @foreach (var p in Definition.Parameters)
+                {
+                    var name = p.Name;
+                    @if (string.IsNullOrWhiteSpace(name))
+                    {
+                        continue;
+                    }
+                    <div class="rd-pval" data-pname="@name">
+                        @if (p.Type == ReportParameterType.Bool)
+                        {
+                            <MudCheckBox T="bool" Label="@ParamLabel(p)" @bind-Value="_paramBool[name]" />
+                        }
+                        else if (p.Type == ReportParameterType.Date)
+                        {
+                            <MudDatePicker Label="@ParamLabel(p)" @bind-Date="_paramDates[name]" />
+                        }
+                        else
+                        {
+                            <MudTextField T="string" Label="@ParamLabel(p)" @bind-Value="_paramText[name]" />
+                        }
+                    </div>
+                }
+                @if (MissingRequiredParams() is { } miss)
+                {
+                    <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-2">
+                        Thiếu tham số bắt buộc: @miss
+                    </MudAlert>
+                }
+            }
+
+            <MudDivider Class="my-3" />
+
+            @if (_item is null)
+            {
+                <MudText Typo="Typo.body2" Class="rd-muted">Chọn một item trên canvas để sửa thuộc tính.</MudText>
+                @if (_band != null)
+                {
+                    <MudDivider Class="my-3" />
+                    <MudText Typo="Typo.subtitle2" Class="rd-h">Band: @_band.Kind</MudText>
+                    <MudNumericField T="double" Label="Chiều cao band (mm)" @bind-Value="_band.Height" @bind-Value:after="Notify" />
+                    <MudCheckBox T="bool" Label="Ngắt trang trước band"
+                                 @bind-Value="_band.PageBreakBefore" @bind-Value:after="Notify" />
+                }
+            }
+            else
+            {
+                <MudText Typo="Typo.subtitle2" Class="rd-h">Tuỳ chọn nâng cao</MudText>
+
+                @if (_sel.Count >= 2)
+                {
+                    <MudDivider Class="my-3" />
+                    <MudText Typo="Typo.subtitle2" Class="rd-h">Căn chỉnh (@_sel.Count)</MudText>
+                    <div class="rd-align">
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="() => AlignAsync(AlignMode.Left)">Trái</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="() => AlignAsync(AlignMode.CenterH)">Giữa ngang</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="() => AlignAsync(AlignMode.Right)">Phải</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="() => AlignAsync(AlignMode.Top)">Trên</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="() => AlignAsync(AlignMode.Middle)">Giữa dọc</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="() => AlignAsync(AlignMode.Bottom)">Dưới</MudButton>
+                    </div>
+                    @if (_sel.Count >= 3)
+                    {
+                        <div class="rd-align mt-1">
+                            <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="() => DistributeAsync(true)">Rải ngang</MudButton>
+                            <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="() => DistributeAsync(false)">Rải dọc</MudButton>
+                        </div>
+                    }
+                }
+
+                @if (_item.Kind == ItemKind.Table)
+                {
+                    <MudText Typo="Typo.caption" Class="rd-muted">
+                        Bảng lặp theo dữ liệu. Đặt trong <b>GroupHeader/GroupFooter</b> → bảng con của từng nhóm.
+                    </MudText>
+                    <MudSelect T="string" Label="Phạm vi dữ liệu" @bind-Value="Table.Scope"
+                               @bind-Value:after="() => EditedAsync(EditKey.Table)">
+                        <MudSelectItem T="string" Value="@("group")">Nhóm hiện tại</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("all")">Toàn bộ dòng</MudSelectItem>
+                    </MudSelect>
+                    <div class="rd-flags">
+                        <MudCheckBox T="bool" Label="Tiêu đề" @bind-Value="Table.ShowHeader" @bind-Value:after="() => EditedAsync(EditKey.Table)" />
+                        <MudCheckBox T="bool" Label="Viền" @bind-Value="Table.Borders" @bind-Value:after="() => EditedAsync(EditKey.Table)" />
+                        <MudCheckBox T="bool" Label="Sọc" @bind-Value="Table.Zebra" @bind-Value:after="() => EditedAsync(EditKey.Table)" />
+                        <MudCheckBox T="bool" Label="Dòng tổng" @bind-Value="Table.Footer" @bind-Value:after="() => EditedAsync(EditKey.Table)" />
+                    </div>
+                    <MudNumericField T="double" Label="Cao dòng (mm)" @bind-Value="Table.RowHeight" @bind-Value:after="() => EditedAsync(EditKey.Table)" />
+                    <MudNumericField T="int" Label="Giới hạn dòng (0 = tự động)" @bind-Value="Table.MaxRows" @bind-Value:after="() => EditedAsync(EditKey.Table)" />
+                    <MudTextField T="string" Label="Nền tiêu đề" Placeholder="#EEEEEE" @bind-Value="Table.HeaderBackground" @bind-Value:after="() => EditedAsync(EditKey.Table)" />
+
+                    <MudText Typo="Typo.subtitle2" Class="rd-h">Cột (@Table.Columns.Count)</MudText>
+                    @for (var ci = 0; ci < Table.Columns.Count; ci++)
+                    {
+                        var col = Table.Columns[ci];
+                        var cidx = ci;
+                        <div class="rd-col">
+                            <div class="rd-col-head">
+                                <span class="rd-muted">#@(cidx + 1)</span>
+                                <MudIconButton Size="Size.Small" Icon="@Icons.Material.Filled.ArrowUpward" aria-label="Cột lên"
+                                               Disabled="@(cidx == 0)" OnClick="() => MoveColumnAsync(cidx, -1)" />
+                                <MudIconButton Size="Size.Small" Icon="@Icons.Material.Filled.ArrowDownward" aria-label="Cột xuống"
+                                               Disabled="@(cidx >= Table.Columns.Count - 1)" OnClick="() => MoveColumnAsync(cidx, 1)" />
+                                <MudIconButton Size="Size.Small" Icon="@Icons.Material.Filled.Delete" aria-label="Xoá cột"
+                                               OnClick="() => RemoveColumnAsync(cidx)" />
+                            </div>
+                            <MudTextField T="string" Label="Tiêu đề" @bind-Value="col.Header" @bind-Value:after="() => EditedAsync(EditKey.Table)" />
+                            <MudTextField T="string" Label="Binding" Placeholder="Name" @bind-Value="col.Binding" @bind-Value:after="() => EditedAsync(EditKey.Table)" />
+                            <ExpressionBuilder Value="@col.Expression" ValueChanged="@(v => SetColumnExpressionAsync(col, v))"
+                                           Definition="Definition" Fields="AvailableFields"
+                                           Preview="PreviewExpression" Label="Expression"
+                                           Placeholder="LineTotal" Compact="true" />
+                            <MudTextField T="string" Label="Format" Placeholder="N0" @bind-Value="col.Format" @bind-Value:after="() => EditedAsync(EditKey.Table)" />
+                            <div class="rd-2col">
+                                <MudSelect T="string" Label="Canh" @bind-Value="col.Align" @bind-Value:after="() => EditedAsync(EditKey.Table)">
+                                    <MudSelectItem T="string" Value="@("left")">Trái</MudSelectItem>
+                                    <MudSelectItem T="string" Value="@("center")">Giữa</MudSelectItem>
+                                    <MudSelectItem T="string" Value="@("right")">Phải</MudSelectItem>
+                                </MudSelect>
+                                <MudSelect T="string" Label="Tổng" @bind-Value="col.Aggregate" @bind-Value:after="() => EditedAsync(EditKey.Table)">
+                                    <MudSelectItem T="string" Value="@("none")">Không</MudSelectItem>
+                                    <MudSelectItem T="string" Value="@("sum")">Sum</MudSelectItem>
+                                    <MudSelectItem T="string" Value="@("avg")">Avg</MudSelectItem>
+                                    <MudSelectItem T="string" Value="@("count")">Count</MudSelectItem>
+                                    <MudSelectItem T="string" Value="@("min")">Min</MudSelectItem>
+                                    <MudSelectItem T="string" Value="@("max")">Max</MudSelectItem>
+                                </MudSelect>
+                            </div>
+                            <MudNumericField T="double" Label="Rộng (mm)" @bind-Value="col.Width" @bind-Value:after="() => EditedAsync(EditKey.Table)" />
+                        </div>
+                    }
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="AddColumnAsync">Thêm cột</MudButton>
+                }
+                else if (_item.Kind == ItemKind.Subreport)
+                {
+                    <MudText Typo="Typo.caption" Class="rd-muted">
+                        Nhúng một báo cáo khác vào vùng này. Nội dung con chảy trong band chứa nó —
+                        đặt band đủ cao.
+                    </MudText>
+                    @if (AvailableReports is { Count: > 0 })
+                    {
+                        <MudSelect T="string" Label="Báo cáo con" Value="@Subre.ReportCode"
+                                   ValueChanged="OnSubreportCodeChanged" Dense="true">
+                            @foreach (var r in AvailableReports)
+                            {
+                                <MudSelectItem T="string" Value="@r.Code">@r.Name (@r.Code)</MudSelectItem>
+                            }
+                        </MudSelect>
+                    }
+                    else
+                    {
+                        <MudAlert Severity="Severity.Info" Dense="true" Class="my-2">
+                            Host chưa truyền danh sách báo cáo (AvailableReports) — nhập mã thủ công.
+                        </MudAlert>
+                    }
+                    <MudTextField T="string" Label="Mã báo cáo" Placeholder="top-san-pham"
+                                  @bind-Value="Subre.ReportCode" @bind-Value:after="() => EditedAsync(EditKey.Subreport)" />
+                    <div class="rd-flags">
+                        <MudCheckBox T="bool" Label="Kế thừa tham số" @bind-Value="Subre.InheritParameters"
+                                     @bind-Value:after="() => EditedAsync(EditKey.Subreport)" />
+                        <MudCheckBox T="bool" Label="Khung" @bind-Value="Subre.ShowBorder"
+                                     @bind-Value:after="() => EditedAsync(EditKey.Subreport)" />
+                    </div>
+                }
+                else if (_item.Kind == ItemKind.Chart)
+                {
+                    <MudText Typo="Typo.caption" Class="rd-muted">
+                        Biểu đồ tổng hợp theo từng dòng detail (Category × Value).
+                    </MudText>
+                    <MudSelect T="string" Label="Loại" @bind-Value="ChartSpec.Type" @bind-Value:after="() => EditedAsync(EditKey.Chart)">
+                        <MudSelectItem T="string" Value="@("bar")">Cột (bar)</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("line")">Đường (line)</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("pie")">Tròn (pie)</MudSelectItem>
+                    </MudSelect>
+                    <MudTextField T="string" Label="Category (biểu thức)" Placeholder="Format(Ngay, 'dd/MM')"
+                                  @bind-Value="ChartSpec.Category" @bind-Value:after="() => EditedAsync(EditKey.Chart)" />
+                    <MudTextField T="string" Label="Value (biểu thức)" Placeholder="TongTien"
+                                  @bind-Value="ChartSpec.Value" @bind-Value:after="() => EditedAsync(EditKey.Chart)" />
+                    <MudSelect T="string" Label="Tổng hợp" @bind-Value="ChartSpec.Aggregate" @bind-Value:after="() => EditedAsync(EditKey.Chart)">
+                        <MudSelectItem T="string" Value="@("sum")">Sum</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("avg")">Avg</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("count")">Count</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("min")">Min</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("max")">Max</MudSelectItem>
+                    </MudSelect>
+                    <MudSelect T="string" Label="Chú giải" @bind-Value="ChartSpec.Legend" @bind-Value:after="() => EditedAsync(EditKey.Chart)">
+                        <MudSelectItem T="string" Value="@("none")">Không</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("right")">Phải</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("bottom")">Dưới</MudSelectItem>
+                    </MudSelect>
+                    <MudTextField T="string" Label="Tiêu đề" @bind-Value="ChartSpec.Title" @bind-Value:after="() => EditedAsync(EditKey.Chart)" />
+                    <div class="rd-flags">
+                        <MudCheckBox T="bool" Label="Hiện giá trị" @bind-Value="ChartSpec.ShowValues" @bind-Value:after="() => EditedAsync(EditKey.Chart)" />
+                    </div>
+                }
+                else if (_item.Kind == ItemKind.Image)
+                {
+                    <MudText Typo="Typo.caption" Class="rd-muted">
+                        Logo / ảnh: tải từ máy (nhúng base64) hoặc dán đường dẫn / data URI. Ảnh vừa khung, giữ tỷ lệ.
+                    </MudText>
+                    <MudTextField T="string" Label="Nguồn ảnh" Placeholder="data:image/png;base64,... hoặc C:\logo.png"
+                                  Lines="2" @bind-Value="_item.Src" @bind-Value:after="() => EditedAsync(EditKey.Image)" />
+                    <div class="rd-tools">
+                        <InputFile OnChange="OnImageFileAsync" accept="image/*" class="rd-file" />
+                        @if (!string.IsNullOrWhiteSpace(_item.Src))
+                        {
+                            <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error"
+                                       OnClick="ClearImageAsync">Xoá ảnh</MudButton>
+                        }
+                    </div>
+                    @if (IsDataImage(_item.Src))
+                    {
+                        <div class="rd-img-prev"><img src="@_item.Src" alt="Xem trước" /></div>
+                    }
+                }
+                else if (Symbology.IsSymbology(_item.Kind))
+                {
+                    <MudText Typo="Typo.caption" Class="rd-muted">Nguồn: ưu tiên Binding → Expression → Text (nội suy).</MudText>
+                    <MudTextField T="string" Label="Binding" Placeholder="BillNo" @bind-Value="_item.Binding" @bind-Value:after="() => EditedAsync(EditKey.Bind)" />
+                    <MudTextField T="string" Label="Expression" Placeholder="'HD-' + BillNo" @bind-Value="_item.Expression" @bind-Value:after="() => EditedAsync(EditKey.Expr)" />
+                    <MudTextField T="string" Label="Text (nội suy {})" Placeholder="{BillNo}" @bind-Value="_item.Text" @bind-Value:after="() => EditedAsync(EditKey.Text)" />
+
+                    @if (_item.Kind == ItemKind.Barcode)
+                    {
+                        <MudSelect T="string" Label="Định dạng" @bind-Value="Sym.Format" @bind-Value:after="() => EditedAsync(EditKey.Sym)">
+                            <MudSelectItem T="string" Value="@("Code128")">Code128</MudSelectItem>
+                            <MudSelectItem T="string" Value="@("Code39")">Code39</MudSelectItem>
+                            <MudSelectItem T="string" Value="@("EAN13")">EAN13</MudSelectItem>
+                            <MudSelectItem T="string" Value="@("EAN8")">EAN8</MudSelectItem>
+                            <MudSelectItem T="string" Value="@("UPCA")">UPCA</MudSelectItem>
+                            <MudSelectItem T="string" Value="@("ITF")">ITF</MudSelectItem>
+                        </MudSelect>
+                        <MudCheckBox T="bool" Label="Hiện số dưới mã" @bind-Value="Sym.ShowText" @bind-Value:after="() => EditedAsync(EditKey.Sym)" />
+                    }
+                    else
+                    {
+                        <MudSelect T="string" Label="Sửa lỗi (ECC)" @bind-Value="Sym.Ecc" @bind-Value:after="() => EditedAsync(EditKey.Sym)">
+                            <MudSelectItem T="string" Value="@("L")">L (~7%)</MudSelectItem>
+                            <MudSelectItem T="string" Value="@("M")">M (~15%)</MudSelectItem>
+                            <MudSelectItem T="string" Value="@("Q")">Q (~25%)</MudSelectItem>
+                            <MudSelectItem T="string" Value="@("H")">H (~30%)</MudSelectItem>
+                        </MudSelect>
+                    }
+                    <MudNumericField T="int" Label="Vùng lặng (module, 0 = tự động)" @bind-Value="Sym.QuietZone" @bind-Value:after="() => EditedAsync(EditKey.Sym)" />
+                }
+                else
+                {
+                    @if (_item.Kind == ItemKind.Expression)
+                    {
+                        <MudDivider Class="my-3" />
+                        <MudText Typo="Typo.subtitle2" Class="rd-h">Biểu thức</MudText>
+                        <ExpressionBuilder Value="@_item.Expression" ValueChanged="@OnItemExpressionChanged"
+                                           Definition="Definition" Fields="AvailableFields"
+                                           Preview="PreviewExpression" Label="Expression"
+                                           Placeholder="Sum(LineTotal)" />
+                    }
+                }
+
+                <MudDivider Class="my-3" />
+                <MudText Typo="Typo.subtitle2" Class="rd-h">Thứ tự (z-order)</MudText>
+                <div class="rd-zorder">
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="() => MoveZAsync(3)">Lên đầu</MudButton>
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="() => MoveZAsync(1)">Lên</MudButton>
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="() => MoveZAsync(2)">Xuống</MudButton>
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="() => MoveZAsync(0)">Xuống cuối</MudButton>
+                </div>
+
+                <MudDivider Class="my-3" />
+                <MudText Typo="Typo.subtitle2" Class="rd-h">Nhóm &amp; khoá</MudText>
+                <div class="rd-align">
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined" Disabled="@(_sel.Count < 2)"
+                               OnClick="GroupSelectedAsync">Nhóm</MudButton>
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined"
+                               Disabled="@(!_sel.Any(i => !string.IsNullOrEmpty(i.Group)))"
+                               OnClick="UngroupSelectedAsync">Bỏ nhóm</MudButton>
+                </div>
+                <div class="rd-flags mt-2">
+                    <MudCheckBox T="bool" Label="Khoá vị trí" @bind-Value="_item.Locked"
+                                 @bind-Value:after="() => EditedAsync(EditKey.Lock)" />
+                </div>
+                <div class="rd-align">
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined"
+                               OnClick="() => LockSelectedAsync(true)">Khoá đã chọn</MudButton>
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined"
+                               OnClick="() => LockSelectedAsync(false)">Mở khoá</MudButton>
+                </div>
+
+                <MudDivider Class="my-3" />
+                <MudText Typo="Typo.subtitle2" Class="rd-h">Định dạng có điều kiện</MudText>
+                <ExpressionBuilder Value="@_item.VisibleWhen" ValueChanged="@OnVisibleWhenChanged"
+                                   Definition="Definition" Fields="AvailableFields"
+                                   Preview="PreviewExpression" Label="Hiện khi (biểu thức)"
+                                   Placeholder="Qty > 0" Compact="true" />
+
+                @for (var ri = 0; ri < _item.StyleRules.Count; ri++)
+                {
+                    var rule = _item.StyleRules[ri];
+                    var ridx = ri;
+                    <div class="rd-rule" data-rule="@ridx">
+                        <div class="rd-col-head">
+                            <span class="rd-muted">Luật #@(ridx + 1)</span>
+                            <MudIconButton Size="Size.Small" Icon="@Icons.Material.Filled.Delete" aria-label="Xoá luật"
+                                           OnClick="() => RemoveRuleAsync(rule)" />
+                        </div>
+                        <ExpressionBuilder Value="@rule.When" ValueChanged="@(v => SetRuleWhenAsync(rule, v))"
+                                       Definition="Definition" Fields="AvailableFields"
+                                       Preview="PreviewExpression" Label="Khi (biểu thức)"
+                                       Placeholder="LineTotal < 0" Compact="true" />
+                        <div class="rd-flags">
+                            <MudCheckBox T="bool" Label="Đậm" Value="@(rule.Bold == true)"
+                                         ValueChanged="@((bool v) => SetRuleFlagAsync(rule, "bold", v))" />
+                            <MudCheckBox T="bool" Label="Nghiêng" Value="@(rule.Italic == true)"
+                                         ValueChanged="@((bool v) => SetRuleFlagAsync(rule, "italic", v))" />
+                            <MudCheckBox T="bool" Label="Khung" Value="@(rule.Border == true)"
+                                         ValueChanged="@((bool v) => SetRuleFlagAsync(rule, "border", v))" />
+                        </div>
+                        <div class="rd-2col">
+                            <MudTextField T="string" Label="Màu chữ" Placeholder="#C62828"
+                                          @bind-Value="rule.Color" @bind-Value:after="() => EditedAsync(EditKey.Cond)" />
+                            <MudTextField T="string" Label="Nền" Placeholder="#FFEBEE"
+                                          @bind-Value="rule.Background" @bind-Value:after="() => EditedAsync(EditKey.Cond)" />
+                        </div>
+                    </div>
+                }
+                <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="AddRuleAsync">Thêm luật</MudButton>
+
+                <MudDivider Class="my-3" />
+                <MudText Typo="Typo.subtitle2" Class="rd-h">Band: @_band?.Kind</MudText>
+                @if (_band != null)
+                {
+                    <MudNumericField T="double" Label="Chiều cao band (mm)" @bind-Value="_band.Height" @bind-Value:after="Notify" />
+                }
+            }
+            }
+        </MudPaper>
+    </div>
+    }
+    else if (_mainTab == "params")
+    {
+        <div class="rd-params">
+            <MudPaper Class="rd-pscard" Elevation="1">
+                <MudText Typo="Typo.subtitle2" Class="rd-h">Thông tin báo cáo</MudText>
+                <div class="rd-meta">
+                    <label class="rd-fld"><span>Mã</span>
+                        <input class="rd-in" data-meta="code" value="@Definition.Code" @onchange="SetCodeAsync" /></label>
+                    <label class="rd-fld"><span>Nhóm</span>
+                        <input class="rd-in" data-meta="group" value="@Definition.Group" @onchange="SetGroupAsync" /></label>
+                    <label class="rd-fld rd-grow"><span>Tên báo cáo</span>
+                        <input class="rd-in" data-meta="name" value="@Definition.Name" @onchange="SetNameAsync" /></label>
+                </div>
+                <label class="rd-fld"><span>Diễn giải</span>
+                    <input class="rd-in" data-meta="desc" value="@Definition.Description" @onchange="SetDescriptionAsync" /></label>
+                <div class="rd-flags">
+                    <label class="rd-check2"><input type="checkbox" data-meta="system"
+                        checked="@Definition.IsSystem" @onchange="SetSystemAsync" /> Là mẫu của hệ thống</label>
+                    <label class="rd-check2"><input type="checkbox" data-meta="client"
+                        checked="@Definition.SaveToClient" @onchange="SetSaveToClientAsync" /> Lưu tại máy client</label>
+                    <label class="rd-check2"><input type="checkbox" data-meta="grid"
+                        checked="@Definition.ForGridPrint" @onchange="SetForGridPrintAsync" /> Dùng để in lưới số liệu</label>
+                </div>
+            </MudPaper>
+
+            <MudPaper Class="rd-pscard" Elevation="1">
+                <div class="rd-pchead">
+                    <MudText Typo="Typo.subtitle2" Class="rd-h">Các tham số cho báo cáo (@Definition.Parameters.Count)</MudText>
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="AddParamAsync">+ Thêm dòng</MudButton>
+                </div>
+                <div class="rd-pgridwrap">
+                    <table class="rd-pgrid">
+                        <thead>
+                            <tr>
+                                <th class="rd-pgidxh">TT / R</th>
+                                <th>Tham số</th>
+                                <th>Tên tham số</th>
+                                <th>Kiểu DL</th>
+                                <th>Quyền</th>
+                                <th>Câu SQL cho combobox</th>
+                                <th>Field giá trị</th>
+                                <th>Field hiển thị</th>
+                                <th>Các Fields ẩn</th>
+                                <th>Mặc định</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (var pi = 0; pi < Definition.Parameters.Count; pi++)
+                            {
+                                var p = Definition.Parameters[pi];
+                                var pp = pi;
+                                <tr data-pidx="@pp" data-pname="@p.Name">
+                                    <td class="rd-pgidx">
+                                        <span class="rd-pgnum">@(pp + 1)</span>
+                                        <input type="checkbox" class="rd-pgreq" title="Bắt buộc" checked="@p.Required"
+                                               @onchange="e => SetParamRequiredAsync(pp, e)" />
+                                    </td>
+                                    <td><input class="rd-in" data-col="name" value="@p.Name" @onchange='e => SetParamFieldAsync(pp, "name", e)' /></td>
+                                    <td><input class="rd-in" data-col="label" value="@p.Label" @onchange='e => SetParamFieldAsync(pp, "label", e)' /></td>
+                                    <td>
+                                        <select class="rd-in" data-col="type" @onchange='e => SetParamFieldAsync(pp, "type", e)'>
+                                            @foreach (var t in Enum.GetValues<ReportParameterType>())
+                                            {
+                                                <option value="@t" selected="@(p.Type == t)">@t</option>
+                                            }
+                                        </select>
+                                    </td>
+                                    <td><input class="rd-in" data-col="perm" value="@p.Permission" @onchange='e => SetParamFieldAsync(pp, "perm", e)' /></td>
+                                    <td><input class="rd-in" data-col="combo" value="@p.ComboBoxSql" @onchange='e => SetParamFieldAsync(pp, "combo", e)' /></td>
+                                    <td><input class="rd-in" data-col="value" value="@p.ValueField" @onchange='e => SetParamFieldAsync(pp, "value", e)' /></td>
+                                    <td><input class="rd-in" data-col="display" value="@p.DisplayField" @onchange='e => SetParamFieldAsync(pp, "display", e)' /></td>
+                                    <td><input class="rd-in" data-col="hidden" value="@p.HiddenFields" @onchange='e => SetParamFieldAsync(pp, "hidden", e)' /></td>
+                                    <td><input class="rd-in" data-col="default" value="@p.Default" @onchange='e => SetParamFieldAsync(pp, "default", e)' /></td>
+                                    <td>
+                                        <button type="button" class="rd-pgdel" title="Xoá dòng"
+                                                @onclick="() => RemoveParamAtAsync(pp)">✕</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                @if (Definition.Parameters.Count == 0)
+                {
+                    <MudText Typo="Typo.caption" Class="rd-muted">Chưa có tham số — bấm “+ Thêm dòng”.</MudText>
+                }
+                <MudText Typo="Typo.caption" Class="rd-muted">
+                    <b>TT</b> = thứ tự · <b>R</b> = bắt buộc · tham số dùng trong SQL dạng <code>@@Tên</code>.
+                </MudText>
+            </MudPaper>
+
+            <MudPaper Class="rd-pscard" Elevation="1">
+                <div class="rd-pchead">
+                    <MudText Typo="Typo.subtitle2" Class="rd-h">Nguồn dữ liệu (@Definition.DataSources.Count)</MudText>
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="AddDataSourceAsync">+ Nguồn dữ liệu</MudButton>
+                </div>
+                @if (Definition.DataSources.Count == 0)
+                {
+                    <MudText Typo="Typo.caption" Class="rd-muted">Chưa khai báo — host tự cung cấp dữ liệu.</MudText>
+                }
+                <div class="rd-dslist">
+                    @for (var di = 0; di < Definition.DataSources.Count; di++)
+                    {
+                        var ds = Definition.DataSources[di];
+                        var dd = di;
+                        <div class="rd-pnode @(ReferenceEquals(ds, _ds) ? "sel" : "")"
+                             data-dsidx="@dd" data-dsname="@ds.Name" data-dstype="@ds.Type"
+                             @onclick="() => SelectDataSource(dd)">
+                            <span class="rd-kind">@(string.IsNullOrWhiteSpace(ds.Type) ? "?" : ds.Type)</span>
+                            <span class="rd-lbl" title="@ds.Name">@(string.IsNullOrWhiteSpace(ds.Name) ? "(nguồn)" : ds.Name)</span>
+                        </div>
+                    }
+                </div>
+                @if (_ds != null)
+                {
+                    <div class="rd-meta mt-2">
+                        <MudTextField T="string" Label="Tên nguồn" Margin="Margin.Dense" Variant="Variant.Outlined"
+                                      @bind-Value="_ds.Name" @bind-Value:after="() => EditedAsync(EditKey.DataSource)" />
+                        <MudSelect T="string" Label="Kiểu nguồn" Margin="Margin.Dense" Variant="Variant.Outlined"
+                                   @bind-Value="_ds.Type" @bind-Value:after="() => EditedAsync(EditKey.DataSource)">
+                            <MudSelectItem T="string" Value="@("service")">service — host cung cấp</MudSelectItem>
+                            <MudSelectItem T="string" Value="@("sql")">sql — truy vấn SQL</MudSelectItem>
+                        </MudSelect>
+                        @if (string.Equals(_ds.Type, "sql", StringComparison.OrdinalIgnoreCase))
+                        {
+                            <MudSelect T="string" Label="Kết nối CSDL" Margin="Margin.Dense" Variant="Variant.Outlined"
+                                       @bind-Value="_ds.Connection" @bind-Value:after="() => EditedAsync(EditKey.DataSource)">
+                                @foreach (var c in ConnectionList())
+                                {
+                                    <MudSelectItem T="string" Value="@c.Name">@c.Label</MudSelectItem>
+                                }
+                            </MudSelect>
+                        }
+                    </div>
+                    @if (string.Equals(_ds.Type, "sql", StringComparison.OrdinalIgnoreCase))
+                    {
+                        <div class="rd-sqltabs" role="tablist">
+                            <button type="button" class="rd-stab @(_sqlTab == "report" ? "on" : "")"
+                                    @onclick='() => _sqlTab = "report"'>Câu SQL dùng báo cáo</button>
+                            <button type="button" class="rd-stab @(_sqlTab == "design" ? "on" : "")"
+                                    @onclick='() => _sqlTab = "design"'>Câu SQL dùng để thiết kế</button>
+                        </div>
+                        @if (_sqlTab == "report")
+                        {
+                            <MudTextField T="string" Class="rd-sqlbox" Margin="Margin.Dense" Variant="Variant.Outlined" Lines="8"
+                                          Placeholder="SELECT ... WHERE NgayBan &gt;= @@TuNgay"
+                                          @bind-Value="_ds.Sql" @bind-Value:after="() => EditedAsync(EditKey.DataSource)" />
+                        }
+                        else
+                        {
+                            <MudTextField T="string" Class="rd-sqlbox" Margin="Margin.Dense" Variant="Variant.Outlined" Lines="8"
+                                          Placeholder="SELECT * FROM TenBang"
+                                          @bind-Value="_ds.DesignSql" @bind-Value:after="() => EditedAsync(EditKey.DataSource)" />
+                        }
+                        <div class="rd-tools">
+                            <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary"
+                                       Disabled="@(TestDataSource is null || _probing)" OnClick="RunProbeAsync">
+                                @(_probing ? "Đang chạy..." : "Chạy thử")
+                            </MudButton>
+                            <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error"
+                                       OnClick="RemoveDataSourceAsync">Xoá nguồn</MudButton>
+                        </div>
+                        @if (_probeResult is not null)
+                        {
+                            <MudAlert Dense="true" Severity="@(_probeResult.Ok ? Severity.Success : Severity.Error)"
+                                      Class="my-1 rd-probe">
+                                @if (_probeResult.Ok)
+                                {
+                                    <span>@_probeResult.RowCount dòng · @_probeResult.Columns.Count cột · @_probeResult.ElapsedMs ms</span>
+                                }
+                                else
+                                {
+                                    <span>@_probeResult.Error</span>
+                                }
+                            </MudAlert>
+                        }
+                        @if (_probeFields.Count > 0)
+                        {
+                            <MudText Typo="Typo.caption" Class="rd-muted rd-cols">
+                                Cột: @string.Join(", ", _probeFields.Select(f => f.Name))
+                            </MudText>
+                        }
+                    }
+                    else
+                    {
+                        <div class="rd-tools">
+                            <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error"
+                                       OnClick="RemoveDataSourceAsync">Xoá nguồn</MudButton>
+                        </div>
+                    }
+                }
+            </MudPaper>
+
+            <MudPaper Class="rd-pscard" Elevation="1">
+                <MudText Typo="Typo.subtitle2" Class="rd-h">Sắp xếp (@Definition.Sorting.Count)</MudText>
+                @if (Definition.Sorting.Count == 0)
+                {
+                    <MudText Typo="Typo.caption" Class="rd-muted">Theo thứ tự dữ liệu gốc.</MudText>
+                }
+                @for (var si = 0; si < Definition.Sorting.Count; si++)
+                {
+                    var sort = Definition.Sorting[si];
+                    var sidx = si;
+                    <div class="rd-key" data-sort="@sidx">
+                        <MudTextField T="string" Label="Trường" Placeholder="LineTotal" Margin="Margin.Dense"
+                                      @bind-Value="sort.Field" @bind-Value:after="() => EditedAsync(EditKey.Sort)" />
+                        <MudSelect T="string" Label="Chiều" Margin="Margin.Dense" @bind-Value="sort.Dir"
+                                   @bind-Value:after="() => EditedAsync(EditKey.Sort)">
+                            <MudSelectItem T="string" Value="@("asc")">Tăng</MudSelectItem>
+                            <MudSelectItem T="string" Value="@("desc")">Giảm</MudSelectItem>
+                        </MudSelect>
+                    </div>
+                    <div class="rd-key-act">
+                        <MudIconButton Size="Size.Small" Icon="@Icons.Material.Filled.ArrowUpward" aria-label="Sắp xếp lên"
+                                       Disabled="@(sidx == 0)" OnClick="() => MoveSortAsync(sidx, -1)" />
+                        <MudIconButton Size="Size.Small" Icon="@Icons.Material.Filled.ArrowDownward" aria-label="Sắp xếp xuống"
+                                       Disabled="@(sidx >= Definition.Sorting.Count - 1)" OnClick="() => MoveSortAsync(sidx, 1)" />
+                        <MudIconButton Size="Size.Small" Icon="@Icons.Material.Filled.Delete" aria-label="Xoá sắp xếp"
+                                       OnClick="() => RemoveSortAsync(sort)" />
+                    </div>
+                }
+                <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="AddSortAsync">+ Sắp xếp</MudButton>
+            </MudPaper>
+
+            <MudPaper Class="rd-pscard" Elevation="1">
+                <MudText Typo="Typo.subtitle2" Class="rd-h">Nhóm dữ liệu (@Definition.Grouping.Count)</MudText>
+                @if (Definition.Grouping.Count == 0)
+                {
+                    <MudText Typo="Typo.caption" Class="rd-muted">
+                        Chưa nhóm. Thêm nhóm rồi tạo band GroupHeader/GroupFooter.
+                    </MudText>
+                }
+                @for (var gi = 0; gi < Definition.Grouping.Count; gi++)
+                {
+                    var grp = Definition.Grouping[gi];
+                    var gidx = gi;
+                    <div class="rd-key" data-group="@gidx">
+                        <MudTextField T="string" Label="Trường nhóm" Placeholder="GroupName" Margin="Margin.Dense"
+                                      @bind-Value="grp.Field" @bind-Value:after="() => EditedAsync(EditKey.Group)" />
+                        <MudSelect T="string" Label="Chiều" Margin="Margin.Dense" @bind-Value="grp.Sort"
+                                   @bind-Value:after="() => EditedAsync(EditKey.Group)">
+                            <MudSelectItem T="string" Value="@("asc")">Tăng</MudSelectItem>
+                            <MudSelectItem T="string" Value="@("desc")">Giảm</MudSelectItem>
+                        </MudSelect>
+                    </div>
+                    <div class="rd-key-act">
+                        <MudIconButton Size="Size.Small" Icon="@Icons.Material.Filled.ArrowUpward" aria-label="Nhóm lên"
+                                       Disabled="@(gidx == 0)" OnClick="() => MoveGroupAsync(gidx, -1)" />
+                        <MudIconButton Size="Size.Small" Icon="@Icons.Material.Filled.ArrowDownward" aria-label="Nhóm xuống"
+                                       Disabled="@(gidx >= Definition.Grouping.Count - 1)" OnClick="() => MoveGroupAsync(gidx, 1)" />
+                        <MudIconButton Size="Size.Small" Icon="@Icons.Material.Filled.Delete" aria-label="Xoá nhóm"
+                                       OnClick="() => RemoveGroupAsync(grp)" />
+                    </div>
+                    <MudCheckBox T="bool" Label="Lặp tiêu đề nhóm"
+                                 @bind-Value="grp.RepeatHeader" @bind-Value:after="() => EditedAsync(EditKey.Group)" />
+                    <MudCheckBox T="bool" Label="Giữ nhóm trên một trang"
+                                 @bind-Value="grp.KeepTogether" @bind-Value:after="() => EditedAsync(EditKey.Group)" />
+                }
+                <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="AddGroupAsync">+ Nhóm</MudButton>
+            </MudPaper>
+        </div>
+    }
+    else
+    {
+        <MudPaper Class="rd-prevtab" Elevation="1">
+            <div class="rd-pvw-bar">
+                <MudText Typo="Typo.subtitle2">Xem trước: @Definition.Code</MudText>
+                <span class="rd-sep"></span>
+                <MudIconButton Icon="@Icons.Material.Filled.FirstPage" Size="Size.Small" aria-label="Trang đầu"
+                               Disabled="@(_pvPage <= 0)" OnClick="() => PreviewGo(0)" />
+                <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Size="Size.Small" aria-label="Trang trước"
+                               Disabled="@(_pvPage <= 0)" OnClick="() => PreviewGo(_pvPage - 1)" />
+                <MudText Typo="Typo.body2" Class="rd-pvw-page">Trang @(_pvPage + 1)/@_previewPages.Count</MudText>
+                <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" aria-label="Trang sau"
+                               Disabled="@(_pvPage >= _previewPages.Count - 1)" OnClick="() => PreviewGo(_pvPage + 1)" />
+                <MudIconButton Icon="@Icons.Material.Filled.LastPage" Size="Size.Small" aria-label="Trang cuối"
+                               Disabled="@(_pvPage >= _previewPages.Count - 1)" OnClick="() => PreviewGo(_previewPages.Count - 1)" />
+                <span class="rd-sep"></span>
+                <MudIconButton Icon="@Icons.Material.Filled.ZoomOut" Size="Size.Small" aria-label="Thu nhỏ"
+                               OnClick="() => PreviewZoom(1 / 1.25)" />
+                <MudText Typo="Typo.body2" Class="rd-pvw-zoom">@($"{_pvZoom * 100:0}%")</MudText>
+                <MudIconButton Icon="@Icons.Material.Filled.ZoomIn" Size="Size.Small" aria-label="Phóng to"
+                               OnClick="() => PreviewZoom(1.25)" />
+                <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="PreviewFitAsync">Vừa khổ</MudButton>
+                <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="() => PreviewSetZoom(1)">100%</MudButton>
+                <span class="rd-spacer"></span>
+                <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary"
+                           OnClick="PreviewPagesAsync" Disabled="@(RenderPreviewPages is null)">Tạo xem trước</MudButton>
+            </div>
+            @if (_previewPages.Count == 0)
+            {
+                <div class="rd-prevempty">
+                    <MudText Typo="Typo.body2" Class="rd-muted">Bấm “Tạo xem trước” để render báo cáo thành ảnh.</MudText>
+                </div>
+            }
+            else
+            {
+                <div class="rd-pvw-body">
+                    <img class="rd-pvw-img" src="@PreviewImg()" alt="Trang @(_pvPage + 1)"
+                         style="width:@(N(PaperW * MmToPx * _pvZoom))px" />
+                </div>
+            }
+        </MudPaper>
+    }
+
+    @if (_previewPages.Count > 0 && _mainTab != "preview")
+    {
+        <div class="rd-pvw" tabindex="-1" @ref="_pvRef" @onkeydown="OnPreviewKey">
+            <div class="rd-pvw-bar">
+                <MudText Typo="Typo.subtitle2">Xem trước: @Definition.Code</MudText>
+                <span class="rd-sep"></span>
+                <MudIconButton Icon="@Icons.Material.Filled.FirstPage" Size="Size.Small" aria-label="Trang đầu"
+                               Disabled="@(_pvPage <= 0)" OnClick="() => PreviewGo(0)" />
+                <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Size="Size.Small" aria-label="Trang trước"
+                               Disabled="@(_pvPage <= 0)" OnClick="() => PreviewGo(_pvPage - 1)" />
+                <MudText Typo="Typo.body2" Class="rd-pvw-page">Trang @(_pvPage + 1)/@_previewPages.Count</MudText>
+                <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" aria-label="Trang sau"
+                               Disabled="@(_pvPage >= _previewPages.Count - 1)" OnClick="() => PreviewGo(_pvPage + 1)" />
+                <MudIconButton Icon="@Icons.Material.Filled.LastPage" Size="Size.Small" aria-label="Trang cuối"
+                               Disabled="@(_pvPage >= _previewPages.Count - 1)" OnClick="() => PreviewGo(_previewPages.Count - 1)" />
+                <span class="rd-sep"></span>
+                <MudIconButton Icon="@Icons.Material.Filled.ZoomOut" Size="Size.Small" aria-label="Thu nhỏ"
+                               OnClick="() => PreviewZoom(1 / 1.25)" />
+                <MudText Typo="Typo.body2" Class="rd-pvw-zoom">@($"{_pvZoom * 100:0}%")</MudText>
+                <MudIconButton Icon="@Icons.Material.Filled.ZoomIn" Size="Size.Small" aria-label="Phóng to"
+                               OnClick="() => PreviewZoom(1.25)" />
+                <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="PreviewFitAsync">Vừa khổ</MudButton>
+                <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="() => PreviewSetZoom(1)">100%</MudButton>
+                <span class="rd-spacer"></span>
+                <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" aria-label="Đóng xem trước"
+                               OnClick="ClosePreview" />
+            </div>
+            <div class="rd-pvw-body">
+                <img class="rd-pvw-img" src="@PreviewImg()" alt="Trang @(_pvPage + 1)"
+                     style="width:@(N(PaperW * MmToPx * _pvZoom))px" />
+            </div>
+        </div>
+    }
+
+    <iframe id="rd-pdf" class="rd-pdf" style="display:none"></iframe>
+</div>
+
+@code {
+    [Parameter] public ReportDefinition Definition { get; set; } = new();
+    [Parameter] public EventCallback<ReportDefinition> DefinitionChanged { get; set; }
+    [Parameter] public Func<ReportDefinition, IReadOnlyDictionary<string, object?>, Task<byte[]>>? RenderPreview { get; set; }
+
+    /// <summary>Render tất cả trang ra PNG (mỗi phần tử = 1 trang) cho xem trước WYSIWYG.</summary>
+    [Parameter] public Func<ReportDefinition, IReadOnlyDictionary<string, object?>, Task<IReadOnlyList<byte[]>>>? RenderPreviewPages { get; set; }
+
+    /// <summary>Danh sách báo cáo có thể nhúng làm báo cáo con (hiển thị trong panel Subreport).</summary>
+    [Parameter] public IReadOnlyList<ReportDefinition>? AvailableReports { get; set; }
+
+    /// <summary>Danh sách trường khả dụng để bind (panel "Trường dữ liệu").</summary>
+    [Parameter] public IReadOnlyList<ReportFieldInfo>? AvailableFields { get; set; }
+
+    /// <summary>
+    /// Hàm xem trước biểu thức do host cung cấp (tính trên dữ liệu thật). Nhận biểu thức,
+    /// trả về giá trị đã format; ném lỗi nếu biểu thức sai. Bỏ trống → builder dùng dữ liệu mẫu cục bộ.
+    /// </summary>
+    [Parameter] public Func<string, string?>? PreviewExpression { get; set; }
+
+    /// <summary>Danh sách kết nối CSDL do host cung cấp để chọn trong panel “Nguồn dữ liệu”.</summary>
+    [Parameter] public IReadOnlyList<ReportConnectionInfo>? Connections { get; set; }
+
+    /// <summary>
+    /// Hàm chạy thử nguồn dữ liệu SQL do host cung cấp: nhận datasource + định nghĩa, trả về cột/dòng mẫu.
+    /// Bỏ trống → nút “Chạy thử” không hoạt động.
+    /// </summary>
+    [Parameter] public Func<ReportDataSource, ReportDefinition, Task<SqlProbeResult>>? TestDataSource { get; set; }
+
+    private const double MmToPx = 96.0 / 25.4;
+    private static readonly string[] Handles = { "nw", "n", "ne", "e", "se", "s", "sw", "w" };
+
+    private string _fieldFilter = "";
+    private string? _dragField;
+    private string _rightTab = "props";
+    private string _mainTab = "design";
+    private string _sqlTab = "report";
+
+    private readonly List<string> _previewPages = new();
+    private int _pvPage;
+    private double _pvZoom = 1;
+    private ElementReference _pvRef;
+
+    private ElementReference _canvasRef;
+    private IJSObjectReference? _module;
+    private DotNetObjectReference<ReportDesigner>? _selfRef;
+
+    private int _bandIdx = -1;
+    private ReportBand? _band;
+    private ReportItem? _item;
+    private readonly List<ReportItem> _sel = new();
+
+    private bool _snapOn = true;
+    private bool _gridOn = true;
+    private bool _guidesOn = true;
+    private double _snapStep = 1;
+
+    private double _zoom = 1;
+    private static readonly double[] ZoomPresets = { 0.5, 0.75, 1, 1.25, 1.5, 2 };
+    private int ZoomPercent => (int)Math.Round(_zoom * 100);
+
+    // menu chuột phải
+    private bool _ctxOpen;
+    private double _ctxX;
+    private double _ctxY;
+
+    // ribbon (tab thanh công cụ)
+    private string _ribbonTab = "home";
+
+    private readonly List<ReportItem> _clipboard = new();
+    private int _pasteCount;
+
+    private int _paramIdx = -1;
+    private ReportParameter? _param;
+    private readonly Dictionary<string, string> _paramText = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, DateTime?> _paramDates = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, bool> _paramBool = new(StringComparer.OrdinalIgnoreCase);
+
+    private int _dsIdx = -1;
+    private ReportDataSource? _ds;
+    private SqlProbeResult? _probeResult;
+    private bool _probing;
+    private readonly List<ReportFieldInfo> _probeFields = new();
+
+    private readonly List<HistoryEntry> _undo = new();
+    private readonly List<HistoryEntry> _redo = new();
+    private const int MaxHistory = 200;
+    private string? _renderJson;
+    private string? _coalesceKey;
+    private DateTime _coalesceAt = DateTime.MinValue;
+
+    private sealed record HistoryEntry(string Json, int BandIdx, List<(int Band, int Item)> Sel, (int Band, int Item) Primary);
+
+    private double PaperW => Definition.Paper.Resolve().Width;
+    private double PaperH => Definition.Paper.Resolve().Height;
+
+    private SymbologySpec Sym => _item!.Symbology ??= new SymbologySpec();
+
+    private ChartSpec ChartSpec => _item!.Chart ??= new ChartSpec();
+
+    private TableSpec Table => _item!.Table ??= new TableSpec();
+
+    private SubreportSpec Subre => _item!.Subreport ??= new SubreportSpec();
+
+    protected override void OnParametersSet()
+    {
+        _bandIdx = _bandIdx >= 0 && _bandIdx < Definition.Bands.Count ? _bandIdx : 0;
+        _band = Definition.Bands.ElementAtOrDefault(_bandIdx);
+        if (_item != null && !_sel.Contains(_item))
+            _item = _sel.FirstOrDefault();
+
+        _paramIdx = _paramIdx >= 0 && _paramIdx < Definition.Parameters.Count
+            ? _paramIdx
+            : (Definition.Parameters.Count > 0 ? 0 : -1);
+        _param = Definition.Parameters.ElementAtOrDefault(_paramIdx);
+        SyncParamValues();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        _renderJson = Definition.ToJson();
+
+        if (!firstRender)
+        {
+            if (_module != null)
+                await _module.InvokeVoidAsync("setSnap", _snapStep, _snapOn, _guidesOn);
+            return;
+        }
+
+        _selfRef = DotNetObjectReference.Create(this);
+        _module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/EbizReports.Designer/designer.js");
+        await _module.InvokeVoidAsync("init", _canvasRef, _selfRef,
+            new { snap = _snapStep, snapOn = _snapOn, guidesOn = _guidesOn, pxPerMm = MmToPx });
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_module != null)
+        {
+            try { await _module.InvokeVoidAsync("dispose"); }
+            catch { /* circuit đã đóng */ }
+            try { await _module.DisposeAsync(); }
+            catch { /* ignore */ }
+        }
+        _selfRef?.Dispose();
+    }
+
+    // ------------------------------------------------------------ helpers
+
+    private static string N(double v) => v.ToString("0.####", CultureInfo.InvariantCulture);
+
+    private static ReportItem? ItemAt(ReportDefinition def, int band, int idx) =>
+        band >= 0 && band < def.Bands.Count && idx >= 0 && idx < def.Bands[band].Items.Count
+            ? def.Bands[band].Items[idx]
+            : null;
+
+    private (int Band, int Item)? Locate(ReportItem item)
+    {
+        for (var b = 0; b < Definition.Bands.Count; b++)
+        {
+            var i = Definition.Bands[b].Items.IndexOf(item);
+            if (i >= 0)
+                return (b, i);
+        }
+        return null;
+    }
+
+    private bool IsSelected(ReportItem item) => _sel.Contains(item);
+    private bool IsPrimary(ReportItem item) => ReferenceEquals(item, _item);
+
+    private string SelectionInfo() => _sel.Count switch
+    {
+        0 => "chưa chọn",
+        1 => "1 item",
+        _ => $"{_sel.Count} item",
+    };
+
+    private IEnumerable<int> MajorTicks(double sizeMm)
+    {
+        for (var mm = 0; mm <= sizeMm; mm += 10)
+            yield return mm;
+    }
+
+    private string PaperStyle()
+    {
+        var (w, h) = Definition.Paper.Resolve();
+        return $"width:{N(w * MmToPx)}px;height:{N(h * MmToPx)}px;";
+    }
+
+    private static string ItemStyle(ReportItem it) =>
+        $"left:{N(it.X * MmToPx)}px;top:{N(it.Y * MmToPx)}px;width:{N(it.W * MmToPx)}px;height:{N(it.H * MmToPx)}px;";
+
+    private static string ItemLabel(ReportItem it) => it.Kind switch
+    {
+        ItemKind.Text => it.Text ?? "(text)",
+        ItemKind.Field => it.Binding ?? "(field)",
+        ItemKind.Expression => it.Expression ?? "(expr)",
+        ItemKind.PageNumber => it.Text ?? "Trang {Page}/{Pages}",
+        ItemKind.Barcode => "Barcode " + (it.Symbology?.Format ?? "Code128"),
+        ItemKind.QrCode => "QRCode " + (it.Symbology?.Ecc ?? "M"),
+        ItemKind.Chart => "Biểu đồ " + ChartTypeLabel(it.Chart?.Type),
+        ItemKind.Table => "Bảng " + (it.Table?.Columns.Count ?? 0) + " cột",
+        ItemKind.Image => "Ảnh " + ImageLabel(it.Src),
+        ItemKind.Subreport => "Subreport " + (it.Subreport?.ReportCode ?? ""),
+        _ => it.Kind.ToString(),
+    };
+
+    private static string ItemPreview(ReportItem it) => it.Kind switch
+    {
+        ItemKind.Text => it.Text ?? "",
+        ItemKind.Field => "{" + (it.Binding ?? "?") + "}",
+        ItemKind.Expression => "=" + (it.Expression ?? "?"),
+        ItemKind.PageNumber => it.Text ?? "Trang {Page}/{Pages}",
+        ItemKind.Line => "",
+        ItemKind.Chart => "",
+        ItemKind.Table => "",
+        ItemKind.Image => "",
+        ItemKind.Subreport => "",
+        _ => it.Kind.ToString(),
+    };
+
+    /// <summary>Ảnh nhúng dạng data URI (hiển thị được ngay trong trình duyệt).</summary>
+    private static bool IsDataImage(string? src) =>
+        !string.IsNullOrWhiteSpace(src)
+        && src.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Nhãn gọn cho nguồn ảnh (tên tệp hoặc "(ảnh nhúng)").</summary>
+    private static string ImageLabel(string? src)
+    {
+        if (string.IsNullOrWhiteSpace(src))
+            return "(chưa có ảnh)";
+        if (IsDataImage(src))
+            return "(ảnh nhúng)";
+        var normalized = src.Replace('\\', '/');
+        var slash = normalized.LastIndexOf('/');
+        return slash >= 0 ? normalized[(slash + 1)..] : normalized;
+    }
+
+    /// <summary>SVG xem trước cho mã vạch/QR (dùng giá trị mẫu vì designer không có dữ liệu).</summary>
+    private static string? SymbolSvg(ReportItem item)
+    {
+        var value =
+            !string.IsNullOrWhiteSpace(item.Binding) ? item.Binding :
+            !string.IsNullOrWhiteSpace(item.Expression) ? item.Expression :
+            !string.IsNullOrWhiteSpace(item.Text) ? item.Text :
+            (item.Kind == ItemKind.QrCode ? "EbizOp" : "1234567890");
+        var aspect = item.H > 0.1 ? item.W / item.H : 2.5;
+        return Symbology.Encode(item.Kind, item.Symbology, value, aspect)?.Svg;
+    }
+
+    /// <summary>SVG xem trước cho biểu đồ (dùng dữ liệu mẫu vì designer không có dữ liệu).</summary>
+    private static string ChartSvg(ReportItem item)
+    {
+        var spec = item.Chart;
+        var points = ChartBuilder.Sample(spec?.Type);
+        return ChartBuilder.BuildSvg(spec, points, item.W, item.H);
+    }
+
+    private static string ChartTypeLabel(string? type) => (type ?? "bar").Trim().ToLowerInvariant() switch
+    {
+        "line" => "đường",
+        "pie" => "tròn",
+        _ => "cột",
+    };
+
+    /// <summary>Xem trước bảng nhỏ trong canvas (không có dữ liệu thật → hiện khung + tiêu đề cột).</summary>
+    private static string TablePreviewHtml(ReportItem item)
+    {
+        var spec = item.Table;
+        var cols = spec?.Columns ?? new List<TableColumn>();
+        var sb = new System.Text.StringBuilder();
+        if (cols.Count == 0)
+        {
+            sb.Append("<table class='rd-tbl'><tr><td class='e'>(chưa có cột)</td></tr></table>");
+            return sb.ToString();
+        }
+
+        var total = cols.Sum(c => Math.Max(1, c.Width));
+        string W(TableColumn c) => (Math.Max(1, c.Width) / total * 100).ToString("0.#", CultureInfo.InvariantCulture) + "%";
+
+        sb.Append("<table class='rd-tbl'>");
+        if (spec!.ShowHeader)
+        {
+            sb.Append("<tr class='hd'>");
+            foreach (var c in cols)
+                sb.Append("<th style='width:").Append(W(c)).Append("'>")
+                  .Append(System.Net.WebUtility.HtmlEncode(c.Header)).Append("</th>");
+            sb.Append("</tr>");
+        }
+        for (var r = 0; r < 3; r++)
+        {
+            sb.Append(spec.Zebra && r % 2 == 1 ? "<tr class='z'>" : "<tr>");
+            foreach (var c in cols)
+            {
+                var al = c.Align switch { "right" => "right", "center" => "center", _ => "left" };
+                sb.Append("<td style='text-align:").Append(al).Append("'>–</td>");
+            }
+            sb.Append("</tr>");
+        }
+        if (spec.Footer)
+        {
+            sb.Append("<tr class='ft'>");
+            foreach (var c in cols)
+                sb.Append("<td>").Append(c.Aggregate != "none" ? "Σ" : "").Append("</td>");
+            sb.Append("</tr>");
+        }
+        sb.Append("</table>");
+        return sb.ToString();
+    }
+
+    // ------------------------------------------------------------ history
+
+    private HistoryEntry Capture()
+    {
+        var sel = new List<(int Band, int Item)>();
+        foreach (var it in _sel)
+        {
+            var loc = Locate(it);
+            if (loc.HasValue)
+                sel.Add((loc.Value.Band, loc.Value.Item));
+        }
+        var prim = _item != null ? (Locate(_item) ?? (-1, -1)) : (-1, -1);
+        return new HistoryEntry(Definition.ToJson(), _bandIdx, sel, prim);
+    }
+
+    private void PushSnapshot(string json, bool coalesceReset = true)
+    {
+        _undo.Add(new HistoryEntry(json, _bandIdx, SelIndices(), PrimaryIndex()));
+        if (_undo.Count > MaxHistory)
+            _undo.RemoveAt(0);
+        _redo.Clear();
+        if (coalesceReset)
+        {
+            _coalesceKey = null;
+            _coalesceAt = DateTime.MinValue;
+        }
+    }
+
+    private List<(int Band, int Item)> SelIndices()
+    {
+        var list = new List<(int Band, int Item)>();
+        foreach (var it in _sel)
+        {
+            var loc = Locate(it);
+            if (loc.HasValue)
+                list.Add(loc.Value);
+        }
+        return list;
+    }
+
+    private (int Band, int Item) PrimaryIndex() => _item != null ? (Locate(_item) ?? (-1, -1)) : (-1, -1);
+
+    /// <summary>Lưu mốc hoàn tác trước khi đổi cấu trúc/hình học.</summary>
+    private void PushHistory() => PushSnapshot(Definition.ToJson());
+
+    /// <summary>Lưu mốc cho sửa thuộc tính (gộp các lần sửa liên tiếp cùng trường).</summary>
+    private void PushEdit(string key)
+    {
+        var now = DateTime.UtcNow;
+        if (_coalesceKey == key && (now - _coalesceAt).TotalMilliseconds < 1500)
+        {
+            _coalesceAt = now;
+            return;
+        }
+        _undo.Add(new HistoryEntry(_renderJson ?? Definition.ToJson(), _bandIdx, SelIndices(), PrimaryIndex()));
+        if (_undo.Count > MaxHistory)
+            _undo.RemoveAt(0);
+        _redo.Clear();
+        _coalesceKey = key;
+        _coalesceAt = now;
+    }
+
+    private void Restore(HistoryEntry h)
+    {
+        Definition = ReportDefinition.FromJson(h.Json);
+        _sel.Clear();
+        foreach (var (b, i) in h.Sel)
+        {
+            var it = ItemAt(Definition, b, i);
+            if (it != null)
+                _sel.Add(it);
+        }
+        _bandIdx = h.BandIdx >= 0 && h.BandIdx < Definition.Bands.Count ? h.BandIdx : 0;
+        _band = Definition.Bands.ElementAtOrDefault(_bandIdx);
+        _item = h.Primary.Item >= 0 ? ItemAt(Definition, h.Primary.Band, h.Primary.Item) : _sel.FirstOrDefault();
+
+        _paramIdx = -1;
+        _param = null;
+        SyncParamValues();
+    }
+
+    private async Task UndoAsync()
+    {
+        if (_undo.Count == 0)
+            return;
+        var cur = Capture();
+        var entry = _undo[^1];
+        _undo.RemoveAt(_undo.Count - 1);
+        _redo.Add(cur);
+        Restore(entry);
+        await Notify();
+    }
+
+    private async Task RedoAsync()
+    {
+        if (_redo.Count == 0)
+            return;
+        var cur = Capture();
+        var entry = _redo[^1];
+        _redo.RemoveAt(_redo.Count - 1);
+        _undo.Add(cur);
+        Restore(entry);
+        await Notify();
+    }
+
+    // ------------------------------------------------------------ selection
+
+    private void SelectBand(int band)
+    {
+        _bandIdx = band;
+        _band = Definition.Bands.ElementAtOrDefault(band);
+        _sel.Clear();
+        _item = null;
+    }
+
+    private void SelectItem(int band, int idx, bool additive)
+    {
+        var item = ItemAt(Definition, band, idx);
+        if (item == null)
+            return;
+
+        _bandIdx = band;
+        _band = Definition.Bands[band];
+
+        if (additive)
+        {
+            if (!_sel.Remove(item))
+                _sel.Add(item);
+        }
+        else
+        {
+            _sel.Clear();
+            _sel.Add(item);
+        }
+        _item = _sel.Contains(item) ? item : _sel.FirstOrDefault();
+    }
+
+    [JSInvokable]
+    public async Task OnPointerSelect(int band, int idx, bool additive, string? group = null)
+    {
+        SelectItem(band, idx, additive);
+        if (!additive && !string.IsNullOrEmpty(group))
+            ExpandGroup(group);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>Chọn tất cả item cùng nhóm (dùng khi click 1 item thuộc nhóm).</summary>
+    private void ExpandGroup(string group)
+    {
+        var lead = _item;
+        _sel.Clear();
+        foreach (var b in Definition.Bands)
+            foreach (var it in b.Items)
+                if (string.Equals(it.Group, group, StringComparison.Ordinal))
+                    _sel.Add(it);
+        _item = lead != null && _sel.Contains(lead) ? lead : _sel.FirstOrDefault();
+    }
+
+    [JSInvokable]
+    public async Task OnClearSelection()
+    {
+        _sel.Clear();
+        _item = null;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    // ------------------------------------------------------------ geometry
+
+    [JSInvokable]
+    public async Task OnGeometryCommitted(ItemGeometry[] items)
+    {
+        if (items == null || items.Length == 0)
+            return;
+        PushHistory();
+        foreach (var g in items)
+        {
+            var it = ItemAt(Definition, g.Band, g.Idx);
+            if (it == null)
+                continue;
+            it.X = g.X;
+            it.Y = g.Y;
+            it.W = g.W;
+            it.H = g.H;
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>Kéo giãn chiều cao band trên canvas (mm).</summary>
+    [JSInvokable]
+    public async Task OnBandHeightCommitted(int band, double height)
+    {
+        var b = Definition.Bands.ElementAtOrDefault(band);
+        if (b == null)
+            return;
+        PushHistory();
+        b.Height = Math.Round(Math.Max(4, height), 1);
+        SelectBand(band);
+        await Notify();
+    }
+
+    [JSInvokable]
+    public async Task OnNudge(double dx, double dy)
+    {
+        var movable = _sel.Where(i => !i.Locked).ToList();
+        if (movable.Count == 0)
+            return;
+        PushHistory();
+        foreach (var it in movable)
+        {
+            it.X = Math.Max(0, it.X + dx);
+            it.Y = Math.Max(0, it.Y + dy);
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public async Task OnDeleteSelected() => await RemoveSelectedAsync();
+
+    [JSInvokable]
+    public async Task OnUndo() => await UndoAsync();
+
+    [JSInvokable]
+    public async Task OnRedo() => await RedoAsync();
+
+    // ------------------------------------------------------------ edits
+
+    // ------------------------------------------------------------ hộp công cụ (Toolbox)
+
+    private sealed record ToolboxEntry(string Icon, string Label, string Title, Func<Task> Add);
+
+    private IReadOnlyList<ToolboxEntry> ToolboxItems() => new List<ToolboxEntry>
+    {
+        new("T", "Text", "Nhãn văn bản", () => { AddItem(ItemKind.Text); return Task.CompletedTask; }),
+        new("⌗", "Field", "Trường dữ liệu (Binding)", () => { AddItem(ItemKind.Field); return Task.CompletedTask; }),
+        new("∑", "Expr", "Biểu thức", () => { AddItem(ItemKind.Expression); return Task.CompletedTask; }),
+        new("─", "Line", "Đường kẻ", () => { AddItem(ItemKind.Line); return Task.CompletedTask; }),
+        new("#", "Số trang", "Số trang {Page}/{Pages}", () => { AddItem(ItemKind.PageNumber); return Task.CompletedTask; }),
+        new("‖", "Barcode", "Mã vạch", () => { AddItem(ItemKind.Barcode); return Task.CompletedTask; }),
+        new("▦", "QRCode", "Mã QR", () => { AddItem(ItemKind.QrCode); return Task.CompletedTask; }),
+        new("▥", "Biểu đồ", "Biểu đồ", () => { AddItem(ItemKind.Chart); return Task.CompletedTask; }),
+        new("⊞", "Bảng", "Bảng dữ liệu", () => { AddItem(ItemKind.Table); return Task.CompletedTask; }),
+        new("⊟", "Bảng nhóm", "Bảng con theo nhóm", AddGroupTableAsync),
+        new("🖼", "Ảnh", "Ảnh / logo", () => { AddItem(ItemKind.Image); return Task.CompletedTask; }),
+        new("🗎", "Subreport", "Báo cáo con", () => { AddItem(ItemKind.Subreport); return Task.CompletedTask; }),
+    };
+
+    private void AddItem(ItemKind kind)
+    {
+        if (_band is null)
+            return;
+        PushHistory();
+
+        var item = new ReportItem { Kind = kind };
+        if (kind == ItemKind.Text || kind == ItemKind.PageNumber)
+            item.Text = kind == ItemKind.PageNumber ? "Trang {Page}/{Pages}" : "Nội dung";
+        if (kind == ItemKind.Field)
+            item.Binding = "Name";
+        if (kind == ItemKind.Expression)
+            item.Expression = "Sum(LineTotal)";
+        if (kind == ItemKind.Barcode)
+        {
+            item.W = 60;
+            item.H = 16;
+            item.Text = "1234567890";
+            item.Symbology = new SymbologySpec { Format = "Code128", ShowText = true };
+        }
+        if (kind == ItemKind.QrCode)
+        {
+            item.W = 25;
+            item.H = 25;
+            item.Text = "EbizOp";
+            item.Symbology = new SymbologySpec { Ecc = "M" };
+        }
+        if (kind == ItemKind.Chart)
+        {
+            item.W = 90;
+            item.H = 55;
+            item.Chart = new ChartSpec { Type = "bar", Category = "Format(Ngay, 'dd/MM')", Value = "TongTien", Aggregate = "sum", Legend = "right" };
+        }
+        if (kind == ItemKind.Table)
+        {
+            item.W = 120;
+            item.H = 40;
+            item.Table = new TableSpec
+            {
+                ShowHeader = true,
+                Borders = true,
+                Footer = true,
+                Columns =
+                {
+                    new TableColumn { Header = "Tên", Binding = "Name", Width = 60 },
+                    new TableColumn { Header = "SL", Binding = "Qty", Align = "center", Width = 20, Aggregate = "sum", Format = "N0" },
+                    new TableColumn { Header = "Thành tiền", Binding = "LineTotal", Align = "right", Width = 40, Aggregate = "sum", Format = "N0" },
+                },
+            };
+        }
+
+        if (kind == ItemKind.Subreport)
+        {
+            item.W = 180;
+            item.H = 60;
+            item.Subreport = new SubreportSpec
+            {
+                ReportCode = AvailableReports?.FirstOrDefault()?.Code ?? "",
+                InheritParameters = true,
+            };
+        }
+
+        if (kind == ItemKind.Image)
+        {
+            item.W = 40;
+            item.H = 24;
+            item.Src = "";
+        }
+
+        _band.Items.Add(item);
+        _sel.Clear();
+        _sel.Add(item);
+        _item = item;
+        _ = Notify();
+    }
+
+    // ------------------------------------------------------------ trường dữ liệu (data panel)
+
+    /// <summary>Danh sách trường khả dụng, đã lọc theo ô tìm kiếm (gồm cả cột lấy từ "Chạy thử").</summary>
+    private IReadOnlyList<ReportFieldInfo> FieldList()
+    {
+        var all = new List<ReportFieldInfo>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var f in _probeFields)
+            if (seen.Add(f.Name))
+                all.Add(f);
+        if (AvailableFields is not null)
+            foreach (var f in AvailableFields)
+                if (seen.Add(f.Name))
+                    all.Add(f);
+
+        var q = _fieldFilter?.Trim();
+        if (!string.IsNullOrEmpty(q))
+            all = all.Where(f => f.Name.Contains(q, StringComparison.OrdinalIgnoreCase)).ToList();
+        return all;
+    }
+
+    private static string FieldCatLabel(string category) => category switch
+    {
+        "field" => "đơn",
+        "param" => "TS",
+        _ => "dòng",
+    };
+
+    private void OnFieldDragStart(ReportFieldInfo field) => _dragField = field.Name;
+
+    private async Task OnFieldDropAsync(int bandIndex)
+    {
+        var field = _dragField;
+        _dragField = null;
+        if (string.IsNullOrEmpty(field))
+            return;
+        await AddFieldItemAsync(field, bandIndex);
+    }
+
+    /// <summary>
+    /// Thêm item Field bind vào trường được chọn. Nếu chưa chọn band thì tự dùng band Detail
+    /// (nếu có). Item đặt ở vị trí trống kế tiếp theo chiều dọc.
+    /// </summary>
+    private async Task AddFieldItemAsync(string field, int bandIndex)
+    {
+        if (bandIndex < 0 || bandIndex >= Definition.Bands.Count)
+        {
+            bandIndex = Definition.Bands.FindIndex(b => b.Kind == BandKind.Detail);
+            if (bandIndex < 0)
+                bandIndex = _bandIdx;
+        }
+        if (bandIndex < 0 || bandIndex >= Definition.Bands.Count)
+            return;
+
+        PushHistory();
+
+        var band = Definition.Bands[bandIndex];
+        _bandIdx = bandIndex;
+        _band = band;
+
+        var item = new ReportItem { Kind = ItemKind.Field, Binding = field };
+        item.Y = NextFreeY(band);
+        band.Items.Add(item);
+
+        _sel.Clear();
+        _sel.Add(item);
+        _item = item;
+        await Notify();
+    }
+
+    /// <summary>Y (mm) trống kế tiếp trong band: dưới item thấp nhất, chừa 1 dòng nếu band còn chỗ.</summary>
+    private static double NextFreeY(ReportBand band)
+    {
+        var bottom = band.Items.Count == 0 ? 0 : band.Items.Max(i => i.Y + i.H);
+        return Math.Round(bottom, 2);
+    }
+
+    /// <summary>
+    /// Thêm bảng con của nhóm vào band GroupHeader (tạo band nếu chưa có). Bảng dùng toàn bộ
+    /// bề rộng vùng in, phạm vi "group" → mỗi nhóm hiển thị các dòng của chính nó.
+    /// </summary>
+    private async Task AddGroupTableAsync()
+    {
+        PushHistory();
+
+        var groupHeader = Definition.Bands.FirstOrDefault(b => b.Kind == BandKind.GroupHeader);
+        if (groupHeader is null)
+        {
+            groupHeader = new ReportBand { Kind = BandKind.GroupHeader, Height = 54 };
+            Definition.Bands.Add(groupHeader);
+        }
+
+        var avail = Definition.Paper.Resolve().Width
+                    - Definition.Paper.Margins.Left - Definition.Paper.Margins.Right;
+
+        // Đặt bảng dưới các item sẵn có và nới chiều cao band cho vừa.
+        var top = groupHeader.Items.Count == 0 ? 0 : groupHeader.Items.Max(i => i.Y + i.H);
+        const double tableH = 48;
+
+        var table = new ReportItem
+        {
+            Kind = ItemKind.Table,
+            X = 0,
+            Y = Math.Round(top, 1),
+            W = Math.Round(Math.Max(40, avail), 1),
+            H = tableH,
+            Table = new TableSpec
+            {
+                Scope = "group",
+                ShowHeader = true,
+                Borders = true,
+                Footer = true,
+                Columns =
+                {
+                    new TableColumn { Header = "Tên", Binding = "Name", Width = 60 },
+                    new TableColumn { Header = "SL", Binding = "Qty", Align = "center", Width = 20, Aggregate = "sum", Format = "N0" },
+                    new TableColumn { Header = "Thành tiền", Binding = "LineTotal", Align = "right", Width = 40, Aggregate = "sum", Format = "N0" },
+                },
+            },
+        };
+
+        if (groupHeader.Height < top + tableH + 2)
+            groupHeader.Height = Math.Round(top + tableH + 2, 1);
+
+        groupHeader.Items.Add(table);
+        _bandIdx = Definition.Bands.IndexOf(groupHeader);
+        _band = groupHeader;
+        _sel.Clear();
+        _sel.Add(table);
+        _item = table;
+        await Notify();
+    }
+
+    // ------------------------------------------------ expression builder (ô biểu thức dùng chung)
+
+    private async Task OnItemExpressionChanged(string value)
+    {
+        if (_item is null)
+            return;
+        _item.Expression = value;
+        await EditedAsync(EditKey.Expr);
+    }
+
+    private async Task OnVisibleWhenChanged(string value)
+    {
+        if (_item is null)
+            return;
+        _item.VisibleWhen = value;
+        await EditedAsync(EditKey.Cond);
+    }
+
+    private async Task SetRuleWhenAsync(StyleRule rule, string value)
+    {
+        rule.When = value;
+        await EditedAsync(EditKey.Cond);
+    }
+
+    private async Task SetColumnExpressionAsync(TableColumn column, string value)
+    {
+        column.Expression = value;
+        await EditedAsync(EditKey.Table);
+    }
+
+    private async Task AddColumnAsync()
+    {
+        if (_item is null)
+            return;
+        var avg = Table.Columns.Count > 0
+            ? Table.Columns.Average(c => Math.Max(1, c.Width))
+            : 30;
+        Table.Columns.Add(new TableColumn { Header = "Cột " + (Table.Columns.Count + 1), Width = Math.Round(avg, 1) });
+        await EditedAsync(EditKey.Table);
+    }
+
+    private async Task RemoveColumnAsync(int idx)
+    {
+        if (_item is null || idx < 0 || idx >= Table.Columns.Count)
+            return;
+        Table.Columns.RemoveAt(idx);
+        await EditedAsync(EditKey.Table);
+    }
+
+    private async Task MoveColumnAsync(int idx, int dir)
+    {
+        var j = idx + dir;
+        if (_item is null || idx < 0 || idx >= Table.Columns.Count || j < 0 || j >= Table.Columns.Count)
+            return;
+        (Table.Columns[idx], Table.Columns[j]) = (Table.Columns[j], Table.Columns[idx]);
+        await EditedAsync(EditKey.Table);
+    }
+
+    [JSInvokable]
+    public async Task OnDuplicate() => await DuplicateSelectedAsync();
+
+    private async Task DuplicateSelectedAsync()
+    {
+        if (_sel.Count == 0)
+            return;
+        PushHistory();
+        var clones = new List<ReportItem>();
+        foreach (var band in Definition.Bands)
+        {
+            foreach (var it in band.Items.ToList())
+            {
+                if (!_sel.Contains(it))
+                    continue;
+                var copy = it.Clone();
+                copy.X += 3;
+                copy.Y += 3;
+                band.Items.Add(copy);
+                clones.Add(copy);
+            }
+        }
+        if (clones.Count == 0)
+            return;
+        _sel.Clear();
+        _sel.AddRange(clones);
+        _item = clones[^1];
+        await Notify();
+    }
+
+    private async Task RemoveSelectedAsync()
+    {
+        var removable = _sel.Where(it => !it.Locked).ToList();
+        if (removable.Count == 0)
+            return;
+        PushHistory();
+        foreach (var band in Definition.Bands)
+            band.Items.RemoveAll(it => removable.Contains(it));
+        _sel.Clear();
+        _item = null;
+        await Notify();
+    }
+
+    // ------------------------------------------------------------ group / lock
+
+    [JSInvokable]
+    public async Task OnGroup() => await GroupSelectedAsync();
+
+    [JSInvokable]
+    public async Task OnUngroup() => await UngroupSelectedAsync();
+
+    private async Task GroupSelectedAsync()
+    {
+        if (_sel.Count < 2)
+            return;
+        PushHistory();
+        var gid = Guid.NewGuid().ToString("N")[..8];
+        foreach (var it in _sel)
+            it.Group = gid;
+        await Notify();
+    }
+
+    private async Task UngroupSelectedAsync()
+    {
+        if (!_sel.Any(it => !string.IsNullOrEmpty(it.Group)))
+            return;
+        PushHistory();
+        foreach (var it in _sel)
+            it.Group = null;
+        await Notify();
+    }
+
+    private async Task LockSelectedAsync(bool locked)
+    {
+        var targets = _sel.Where(it => it.Locked != locked).ToList();
+        if (targets.Count == 0)
+            return;
+        PushHistory();
+        foreach (var it in targets)
+            it.Locked = locked;
+        await Notify();
+    }
+
+    // ------------------------------------------------------------ clipboard
+
+    [JSInvokable]
+    public Task OnCopy()
+    {
+        CopySelected();
+        return Task.CompletedTask;
+    }
+
+    private void CopySelected()
+    {
+        if (_sel.Count == 0)
+            return;
+        _clipboard.Clear();
+        foreach (var it in _sel)
+            _clipboard.Add(it.Clone());
+        _pasteCount = 0;
+    }
+
+    [JSInvokable]
+    public async Task OnCut()
+    {
+        if (_sel.Count == 0)
+            return;
+        CopySelected();
+        await RemoveSelectedAsync();
+    }
+
+    [JSInvokable]
+    public async Task OnPaste() => await PasteAsync();
+
+    private async Task PasteAsync()
+    {
+        if (_clipboard.Count == 0)
+            return;
+        var band = _band ?? Definition.Bands.FirstOrDefault();
+        if (band is null)
+            return;
+
+        PushHistory();
+        _pasteCount++;
+        var off = 3.0 * _pasteCount;
+        var clones = new List<ReportItem>();
+        foreach (var src in _clipboard)
+        {
+            var copy = src.Clone();
+            copy.X += off;
+            copy.Y += off;
+            band.Items.Add(copy);
+            clones.Add(copy);
+        }
+
+        _band = band;
+        _bandIdx = Definition.Bands.IndexOf(band);
+        _sel.Clear();
+        _sel.AddRange(clones);
+        _item = clones[^1];
+        await Notify();
+    }
+
+    private async Task CopyButtonAsync()
+    {
+        CopySelected();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task CutButtonAsync() => await OnCut();
+
+    private async Task PasteButtonAsync() => await PasteAsync();
+
+    [JSInvokable]
+    public async Task OnSelectAll()
+    {
+        if (_band is null)
+            return;
+        _sel.Clear();
+        _sel.AddRange(_band.Items);
+        _item = _sel.FirstOrDefault();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    // ------------------------------------------------------------ align / distribute
+
+    private enum AlignMode { Left, CenterH, Right, Top, Middle, Bottom }
+
+    private async Task AlignAsync(AlignMode mode)
+    {
+        if (_sel.Count < 2)
+            return;
+        PushHistory();
+        var items = _sel.ToList();
+        var minX = items.Min(i => i.X);
+        var maxX = items.Max(i => i.X + i.W);
+        var minY = items.Min(i => i.Y);
+        var maxY = items.Max(i => i.Y + i.H);
+        var cx = (minX + maxX) / 2;
+        var cy = (minY + maxY) / 2;
+
+        foreach (var it in items)
+        {
+            switch (mode)
+            {
+                case AlignMode.Left: it.X = minX; break;
+                case AlignMode.Right: it.X = maxX - it.W; break;
+                case AlignMode.CenterH: it.X = cx - it.W / 2; break;
+                case AlignMode.Top: it.Y = minY; break;
+                case AlignMode.Bottom: it.Y = maxY - it.H; break;
+                case AlignMode.Middle: it.Y = cy - it.H / 2; break;
+            }
+        }
+        await Notify();
+    }
+
+    private async Task DistributeAsync(bool horizontal)
+    {
+        if (_sel.Count < 3)
+            return;
+        PushHistory();
+        var items = horizontal
+            ? _sel.OrderBy(i => i.X).ToList()
+            : _sel.OrderBy(i => i.Y).ToList();
+
+        if (horizontal)
+        {
+            var left = items[0].X;
+            var right = items[^1].X + items[^1].W;
+            var total = items.Sum(i => i.W);
+            var gap = (right - left - total) / (items.Count - 1);
+            var cursor = left;
+            foreach (var it in items)
+            {
+                it.X = cursor;
+                cursor += it.W + gap;
+            }
+        }
+        else
+        {
+            var top = items[0].Y;
+            var bottom = items[^1].Y + items[^1].H;
+            var total = items.Sum(i => i.H);
+            var gap = (bottom - top - total) / (items.Count - 1);
+            var cursor = top;
+            foreach (var it in items)
+            {
+                it.Y = cursor;
+                cursor += it.H + gap;
+            }
+        }
+        await Notify();
+    }
+
+    // ------------------------------------------------------------ bands
+
+    private IEnumerable<BandKind> MissingBandKinds() =>
+        Enum.GetValues<BandKind>().Where(k => Definition.Bands.All(b => b.Kind != k));
+
+    private async Task AddBandAsync(BandKind kind)
+    {
+        PushHistory();
+        var band = new ReportBand { Kind = kind, Height = 10 };
+        Definition.Bands.Add(band);
+        _bandIdx = Definition.Bands.Count - 1;
+        _band = band;
+        _sel.Clear();
+        _item = null;
+        await Notify();
+    }
+
+    private async Task DuplicateBandAsync()
+    {
+        if (_band is null)
+            return;
+        PushHistory();
+        var copy = new ReportBand
+        {
+            Kind = _band.Kind,
+            Height = _band.Height,
+            Items = _band.Items.Select(i => i.Clone()).ToList(),
+        };
+        var idx = _bandIdx + 1;
+        Definition.Bands.Insert(idx, copy);
+        _bandIdx = idx;
+        _band = copy;
+        _sel.Clear();
+        _item = null;
+        await Notify();
+    }
+
+    private async Task RemoveBandAsync()
+    {
+        if (_band is null)
+            return;
+        PushHistory();
+        Definition.Bands.RemoveAt(_bandIdx);
+        _bandIdx = Definition.Bands.Count == 0 ? -1 : Math.Clamp(_bandIdx, 0, Definition.Bands.Count - 1);
+        _band = Definition.Bands.ElementAtOrDefault(_bandIdx);
+        _sel.Clear();
+        _item = null;
+        await Notify();
+    }
+
+    private async Task MoveBandAsync(int delta)
+    {
+        if (_band is null)
+            return;
+        var j = _bandIdx + delta;
+        if (j < 0 || j >= Definition.Bands.Count)
+            return;
+        PushHistory();
+        Definition.Bands.RemoveAt(_bandIdx);
+        Definition.Bands.Insert(j, _band);
+        _bandIdx = j;
+        await Notify();
+    }
+
+    // ------------------------------------------------------------ parameters
+
+    private void SyncParamValues()
+    {
+        foreach (var p in Definition.Parameters)
+        {
+            if (string.IsNullOrWhiteSpace(p.Name))
+                continue;
+            if (!_paramText.ContainsKey(p.Name))
+                _paramText[p.Name] = p.Default ?? "";
+            if (!_paramDates.ContainsKey(p.Name))
+                _paramDates[p.Name] = ReportParameterDefaults.Convert(p) as DateTime?;
+            if (!_paramBool.ContainsKey(p.Name))
+                _paramBool[p.Name] = ReportParameterDefaults.Convert(p) as bool? ?? false;
+        }
+    }
+
+    private static string ParamLabel(ReportParameter p) =>
+        !string.IsNullOrWhiteSpace(p.Label) ? p.Label
+        : !string.IsNullOrWhiteSpace(p.Name) ? p.Name
+        : "(tham số)";
+
+    private void SelectParam(int idx)
+    {
+        _paramIdx = idx;
+        _param = Definition.Parameters.ElementAtOrDefault(idx);
+    }
+
+    private async Task AddParamAsync()
+    {
+        PushHistory();
+        var n = Definition.Parameters.Count + 1;
+        var p = new ReportParameter
+        {
+            Name = "ThamSo" + n,
+            Type = ReportParameterType.String,
+            Label = "Tham số " + n,
+        };
+        Definition.Parameters.Add(p);
+        _paramIdx = Definition.Parameters.Count - 1;
+        _param = p;
+        SyncParamValues();
+        await Notify();
+    }
+
+    private async Task RemoveParamAsync()
+    {
+        if (_param is null)
+            return;
+        PushHistory();
+        Definition.Parameters.RemoveAt(_paramIdx);
+        _paramIdx = Definition.Parameters.Count == 0
+            ? -1
+            : Math.Clamp(_paramIdx, 0, Definition.Parameters.Count - 1);
+        _param = Definition.Parameters.ElementAtOrDefault(_paramIdx);
+        await Notify();
+    }
+
+    // ------------------------------------------------------------ tab "Thông số" (metadata + tham số + SQL)
+
+    private async Task MetaEditedAsync() => await EditedAsync(EditKey.Meta);
+    private async Task ParamEditedAsync() => await EditedAsync(EditKey.Param);
+
+    private async Task SetCodeAsync(ChangeEventArgs e) { Definition.Code = (string?)e.Value ?? ""; await MetaEditedAsync(); }
+    private async Task SetGroupAsync(ChangeEventArgs e) { Definition.Group = (string?)e.Value ?? ""; await MetaEditedAsync(); }
+    private async Task SetNameAsync(ChangeEventArgs e) { Definition.Name = (string?)e.Value ?? ""; await MetaEditedAsync(); }
+    private async Task SetDescriptionAsync(ChangeEventArgs e) { Definition.Description = (string?)e.Value ?? ""; await MetaEditedAsync(); }
+    private async Task SetSystemAsync(ChangeEventArgs e) { Definition.IsSystem = (bool)(e.Value ?? false); await MetaEditedAsync(); }
+    private async Task SetSaveToClientAsync(ChangeEventArgs e) { Definition.SaveToClient = (bool)(e.Value ?? false); await MetaEditedAsync(); }
+    private async Task SetForGridPrintAsync(ChangeEventArgs e) { Definition.ForGridPrint = (bool)(e.Value ?? false); await MetaEditedAsync(); }
+
+    private async Task SetParamFieldAsync(int idx, string col, ChangeEventArgs e)
+    {
+        if (idx < 0 || idx >= Definition.Parameters.Count)
+            return;
+        var p = Definition.Parameters[idx];
+        var s = e.Value as string;
+        switch (col)
+        {
+            case "name": p.Name = s ?? ""; break;
+            case "label": p.Label = s ?? ""; break;
+            case "type": p.Type = Enum.TryParse<ReportParameterType>(s, out var t) ? t : ReportParameterType.String; break;
+            case "perm": p.Permission = s; break;
+            case "combo": p.ComboBoxSql = s; break;
+            case "value": p.ValueField = s; break;
+            case "display": p.DisplayField = s; break;
+            case "hidden": p.HiddenFields = s; break;
+            case "default": p.Default = s; break;
+        }
+        await ParamEditedAsync();
+    }
+
+    private async Task SetParamRequiredAsync(int idx, ChangeEventArgs e)
+    {
+        if (idx < 0 || idx >= Definition.Parameters.Count)
+            return;
+        Definition.Parameters[idx].Required = (bool)(e.Value ?? false);
+        await ParamEditedAsync();
+    }
+
+    private async Task RemoveParamAtAsync(int idx)
+    {
+        if (idx < 0 || idx >= Definition.Parameters.Count)
+            return;
+        PushHistory();
+        Definition.Parameters.RemoveAt(idx);
+        _paramIdx = Definition.Parameters.Count == 0 ? -1 : Math.Clamp(idx, 0, Definition.Parameters.Count - 1);
+        _param = Definition.Parameters.ElementAtOrDefault(_paramIdx);
+        SyncParamValues();
+        await Notify();
+    }
+
+    private async Task OpenPreviewTabAsync()
+    {
+        _mainTab = "preview";
+        if (_previewPages.Count == 0 && RenderPreviewPages is not null)
+            await PreviewPagesAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    // ------------------------------------------------------------ nguồn dữ liệu (SQL)
+
+    private IReadOnlyList<ReportConnectionInfo> ConnectionList() =>
+        Connections ?? (IReadOnlyList<ReportConnectionInfo>)Array.Empty<ReportConnectionInfo>();
+
+    private void SelectDataSource(int idx)
+    {
+        _dsIdx = idx;
+        _ds = Definition.DataSources.ElementAtOrDefault(idx);
+        _probeResult = null;
+    }
+
+    private async Task AddDataSourceAsync()
+    {
+        PushHistory();
+        var n = Definition.DataSources.Count + 1;
+        var ds = new ReportDataSource
+        {
+            Name = "Nguon" + n,
+            Type = "sql",
+            Connection = ConnectionList().FirstOrDefault()?.Name,
+        };
+        Definition.DataSources.Add(ds);
+        _dsIdx = Definition.DataSources.Count - 1;
+        _ds = ds;
+        _probeResult = null;
+        await Notify();
+    }
+
+    private async Task RemoveDataSourceAsync()
+    {
+        if (_ds is null)
+            return;
+        PushHistory();
+        Definition.DataSources.RemoveAt(_dsIdx);
+        _dsIdx = Definition.DataSources.Count == 0
+            ? -1
+            : Math.Clamp(_dsIdx, 0, Definition.DataSources.Count - 1);
+        _ds = Definition.DataSources.ElementAtOrDefault(_dsIdx);
+        _probeResult = null;
+        _probeFields.Clear();
+        await Notify();
+    }
+
+    /// <summary>Chạy thử câu SQL qua host; cột trả về được đưa vào panel “Trường dữ liệu”.</summary>
+    private async Task RunProbeAsync()
+    {
+        if (_ds is null || TestDataSource is null)
+            return;
+
+        _probing = true;
+        _probeResult = null;
+        await InvokeAsync(StateHasChanged);
+        try
+        {
+            _probeResult = await TestDataSource(_ds, Definition);
+            if (_probeResult?.Ok == true)
+            {
+                _probeFields.Clear();
+                var first = _probeResult.Rows.FirstOrDefault();
+                foreach (var col in _probeResult.Columns)
+                {
+                    _probeFields.Add(new ReportFieldInfo
+                    {
+                        Name = col,
+                        Category = "detail",
+                        Sample = first is not null && first.TryGetValue(col, out var v)
+                            ? ValueFormatter.Format(v, null)
+                            : null,
+                    });
+                }
+            }
+        }
+        finally
+        {
+            _probing = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    /// <summary>Danh sách tham số bắt buộc còn thiếu (null nếu đã đủ).</summary>
+    private string? MissingRequiredParams()
+    {
+        var missing = new List<string>();
+        foreach (var p in Definition.Parameters)
+        {
+            if (!p.Required || string.IsNullOrWhiteSpace(p.Name))
+                continue;
+            if (CollectParamValue(p) is null)
+                missing.Add(ParamLabel(p));
+        }
+        return missing.Count == 0 ? null : string.Join(", ", missing);
+    }
+
+    private object? CollectParamValue(ReportParameter p)
+    {
+        if (string.IsNullOrWhiteSpace(p.Name))
+            return null;
+        switch (p.Type)
+        {
+            case ReportParameterType.Bool:
+                return _paramBool.TryGetValue(p.Name, out var b) ? b : null;
+            case ReportParameterType.Date:
+                return _paramDates.TryGetValue(p.Name, out var d) ? (object?)d : null;
+            default:
+                return _paramText.TryGetValue(p.Name, out var s) && !string.IsNullOrWhiteSpace(s)
+                    ? ReportParameterDefaults.FromString(p, s)
+                    : null;
+        }
+    }
+
+    private Dictionary<string, object?> CollectParamValues()
+    {
+        var values = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var p in Definition.Parameters)
+        {
+            if (string.IsNullOrWhiteSpace(p.Name))
+                continue;
+            var v = CollectParamValue(p);
+            if (v is not null)
+                values[p.Name] = v;
+        }
+        return values;
+    }
+
+    private async Task MoveZAsync(int mode)
+    {
+        var band = _band;
+        var item = _item;
+        if (band is null || item is null)
+            return;
+        var list = band.Items;
+        var i = list.IndexOf(item);
+        if (i < 0)
+            return;
+
+        var j = mode switch
+        {
+            0 => 0,                              // xuống cuối
+            1 => Math.Min(list.Count - 1, i + 1),// lên
+            2 => Math.Max(0, i - 1),             // xuống
+            3 => list.Count - 1,                 // lên đầu
+            _ => i,
+        };
+        if (j == i)
+            return;
+
+        PushHistory();
+        list.RemoveAt(i);
+        list.Insert(j, item);
+        await Notify();
+    }
+
+    private enum EditKey { X, Y, W, H, Text, Bind, Expr, Format, Size, Align, Bold, Italic, Border, Color, Sym, Param, Lock, Chart, Table, Subreport, Cond, Image, Sort, Group, DataSource, Meta }
+
+    private async Task OnSubreportCodeChanged(string code)
+    {
+        if (_item is null)
+            return;
+        Subre.ReportCode = code ?? "";
+        await EditedAsync(EditKey.Subreport);
+    }
+
+    // ------------------------------------------------------------ định dạng có điều kiện
+
+    private async Task AddRuleAsync()
+    {
+        if (_item is null)
+            return;
+        _item.StyleRules.Add(new StyleRule { When = "LineTotal < 0", Color = "#C62828" });
+        await EditedAsync(EditKey.Cond);
+    }
+
+    private async Task RemoveRuleAsync(StyleRule rule)
+    {
+        if (_item is null)
+            return;
+        _item.StyleRules.Remove(rule);
+        await EditedAsync(EditKey.Cond);
+    }
+
+    /// <summary>Bật/tắt một cờ của luật (null = không đổi kiểu khi luật khớp).</summary>
+    private async Task SetRuleFlagAsync(StyleRule rule, string flag, bool value)
+    {
+        bool? v = value ? true : null;
+        switch (flag)
+        {
+            case "bold": rule.Bold = v; break;
+            case "italic": rule.Italic = v; break;
+            case "border": rule.Border = v; break;
+        }
+        await EditedAsync(EditKey.Cond);
+    }
+
+    // ------------------------------------------------------------ ảnh / logo
+
+    /// <summary>Đọc tệp ảnh người dùng chọn và nhúng vào item dưới dạng data URI.</summary>
+    private async Task OnImageFileAsync(InputFileChangeEventArgs e)
+    {
+        if (_item is null || _item.Kind != ItemKind.Image)
+            return;
+
+        var file = e.File;
+        if (file is null)
+            return;
+
+        try
+        {
+            using var stream = file.OpenReadStream(6 * 1024 * 1024);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            var mime = string.IsNullOrWhiteSpace(file.ContentType) ? "image/png" : file.ContentType;
+            _item.Src = $"data:{mime};base64,{Convert.ToBase64String(ms.ToArray())}";
+            await EditedAsync(EditKey.Image);
+        }
+        catch (Exception ex)
+        {
+            // Tệp quá lớn hoặc đọc lỗi: giữ nguyên ảnh cũ.
+            Console.Error.WriteLine("Image upload failed: " + ex.Message);
+        }
+    }
+
+    private async Task ClearImageAsync()
+    {
+        if (_item is null)
+            return;
+        _item.Src = "";
+        await EditedAsync(EditKey.Image);
+    }
+
+    // ------------------------------------------------------------ sắp xếp & nhóm dữ liệu
+
+    private async Task AddSortAsync()
+    {
+        PushHistory();
+        Definition.Sorting.Add(new ReportSort { Field = "", Dir = "asc" });
+        await Notify();
+    }
+
+    private async Task RemoveSortAsync(ReportSort sort)
+    {
+        PushHistory();
+        Definition.Sorting.Remove(sort);
+        await Notify();
+    }
+
+    private async Task MoveSortAsync(int index, int delta)
+    {
+        MoveEntry(Definition.Sorting, index, delta);
+        await Notify();
+    }
+
+    private async Task AddGroupAsync()
+    {
+        PushHistory();
+        Definition.Grouping.Add(new ReportGroup { Field = "", Sort = "asc", RepeatHeader = true });
+        await Notify();
+    }
+
+    private async Task RemoveGroupAsync(ReportGroup group)
+    {
+        PushHistory();
+        Definition.Grouping.Remove(group);
+        await Notify();
+    }
+
+    private async Task MoveGroupAsync(int index, int delta)
+    {
+        MoveEntry(Definition.Grouping, index, delta);
+        await Notify();
+    }
+
+    /// <summary>Đổi chỗ một phần tử trong danh sách (lưu mốc hoàn tác).</summary>
+    private void MoveEntry<T>(List<T> list, int index, int delta)
+    {
+        var target = index + delta;
+        if (index < 0 || index >= list.Count || target < 0 || target >= list.Count)
+            return;
+        PushHistory();
+        (list[index], list[target]) = (list[target], list[index]);
+    }
+
+    // ------------------------------------------------------------ lưới thuộc tính (kiểu DevExpress)
+
+    /// <summary>
+    /// Dựng danh sách hàng thuộc tính cho lưới bên phải. Luôn có nhóm “Báo cáo”; khi chọn item
+    /// thì thêm các nhóm Bố cục / Dữ liệu / Giao diện / Hành vi.
+    /// </summary>
+    private IReadOnlyList<PropertyRow> PropertyRows()
+    {
+        var rows = new List<PropertyRow>();
+        var d = Definition;
+
+        PropertyRow Add(string id, string label, string cat, PropertyKind kind, object? val,
+            Action<object?>? apply = null, EditKey key = EditKey.Param, string? ph = null,
+            IReadOnlyList<string>? options = null, string? hint = null, string? swatch = null)
+        {
+            var row = new PropertyRow
+            {
+                Key = id,
+                Label = label,
+                Category = cat,
+                Kind = kind,
+                Value = val,
+                Apply = apply,
+                EditKey = key.ToString(),
+                Placeholder = ph,
+                Options = options,
+                Hint = hint,
+                Swatch = swatch,
+            };
+            rows.Add(row);
+            return row;
+        }
+
+        static double D(object? v)
+        {
+            try { return v is null ? 0 : Convert.ToDouble(v, CultureInfo.InvariantCulture); }
+            catch { return 0; }
+        }
+        static string S(object? v) => v?.ToString() ?? "";
+        static bool B(object? v) => v is bool b && b;
+
+        // ---- Báo cáo ----
+        Add("paper.size", "Khổ giấy", "Báo cáo", PropertyKind.Enum, d.Paper.Size.ToString(),
+            v => { if (Enum.TryParse<PaperSizeKind>(S(v), out var s)) d.Paper.Size = s; },
+            options: Enum.GetNames<PaperSizeKind>());
+        Add("paper.orient", "Hướng giấy", "Báo cáo", PropertyKind.Enum, d.Paper.Orientation.ToString(),
+            v => { if (Enum.TryParse<PaperOrientation>(S(v), out var s)) d.Paper.Orientation = s; },
+            options: Enum.GetNames<PaperOrientation>());
+
+        // ---- Item ----
+        if (_item is { } it)
+        {
+            Add("item.x", "X (mm)", "Bố cục", PropertyKind.Number, it.X, v => it.X = D(v), EditKey.X);
+            Add("item.y", "Y (mm)", "Bố cục", PropertyKind.Number, it.Y, v => it.Y = D(v), EditKey.Y);
+            Add("item.w", "Rộng (mm)", "Bố cục", PropertyKind.Number, it.W, v => it.W = D(v), EditKey.W);
+            Add("item.h", "Cao (mm)", "Bố cục", PropertyKind.Number, it.H, v => it.H = D(v), EditKey.H);
+
+            if (it.Kind is ItemKind.Text or ItemKind.PageNumber)
+                Add("item.text", "Text", "Dữ liệu", PropertyKind.Text, it.Text,
+                    v => it.Text = S(v), EditKey.Text, ph: "Nội dung hiển thị");
+            if (it.Kind == ItemKind.Field)
+                Add("item.bind", "Binding", "Dữ liệu", PropertyKind.Text, it.Binding,
+                    v => it.Binding = S(v), EditKey.Bind, ph: "TenHoac.Nhom.Field");
+
+            var complexKind = it.Kind is ItemKind.Chart or ItemKind.Table or ItemKind.Image or ItemKind.Subreport
+                              || Symbology.IsSymbology(it.Kind);
+            if (!complexKind)
+                Add("item.format", "Format", "Dữ liệu", PropertyKind.Text, it.Format,
+                    v => it.Format = S(v), EditKey.Format, ph: "N0 / dd/MM/yyyy");
+
+            Add("item.size", "Cỡ chữ (pt)", "Giao diện", PropertyKind.Number, it.Style.Size,
+                v => it.Style.Size = D(v), EditKey.Size);
+            Add("item.align", "Căn lề", "Giao diện", PropertyKind.Enum, it.Style.Align,
+                v => it.Style.Align = S(v), EditKey.Align, options: new[] { "left", "center", "right" });
+            Add("item.bold", "Đậm", "Giao diện", PropertyKind.Bool, it.Style.Bold,
+                v => it.Style.Bold = B(v), EditKey.Bold);
+            Add("item.italic", "Nghiêng", "Giao diện", PropertyKind.Bool, it.Style.Italic,
+                v => it.Style.Italic = B(v), EditKey.Italic);
+            Add("item.border", "Khung", "Giao diện", PropertyKind.Bool, it.Style.Border,
+                v => it.Style.Border = B(v), EditKey.Border);
+            Add("item.color", "Màu chữ", "Giao diện", PropertyKind.Color, it.Style.Color,
+                v => it.Style.Color = S(v), EditKey.Color, ph: "#RRGGBB", swatch: it.Style.Color);
+            Add("item.bg", "Nền", "Giao diện", PropertyKind.Color, it.Style.Background,
+                v => it.Style.Background = S(v), EditKey.Color, ph: "#RRGGBB", swatch: it.Style.Background);
+
+            Add("item.locked", "Khoá vị trí", "Hành vi", PropertyKind.Bool, it.Locked,
+                v => it.Locked = B(v), EditKey.Lock);
+        }
+
+        // ---- Band (khi chọn band, không chọn item) ----
+        if (_item is null && _band is { } bd)
+        {
+            Add("band.kind", "Loại band", "Band", PropertyKind.ReadOnly, bd.Kind.ToString());
+            Add("band.height", "Chiều cao (mm)", "Band", PropertyKind.Number, bd.Height,
+                v => bd.Height = Math.Max(4, D(v)), EditKey.H);
+            Add("band.pagebreak", "Ngắt trang trước", "Band", PropertyKind.Bool, bd.PageBreakBefore,
+                v => bd.PageBreakBefore = B(v), EditKey.Param);
+            Add("band.count", "Số điều khiển", "Band", PropertyKind.ReadOnly, bd.Items.Count);
+        }
+
+        return rows;
+    }
+
+    private async Task OnPropertyChanged(PropertyRow row)
+    {
+        PushEdit(row.EditKey ?? row.Key);
+        await Notify();
+    }
+
+    private async Task EditedAsync(EditKey key)
+    {
+        PushEdit(key.ToString());
+        await Notify();
+    }
+
+    private async Task ApplySnapAsync()
+    {
+        if (_module != null)
+            await _module.InvokeVoidAsync("setSnap", _snapStep, _snapOn, _guidesOn);
+        StateHasChanged();
+    }
+
+    // ---------------- zoom (50% – 200%) ----------------
+
+    private void SetZoom(double zoom) => _zoom = Math.Clamp(Math.Round(zoom, 2), 0.5, 2);
+
+    private void ZoomBy(double factor) => SetZoom(_zoom * factor);
+
+    /// <summary>Đặt mức zoom để cả trang vừa khung xem (giống “Fit to page” của DevExpress).</summary>
+    private async Task ZoomFitAsync()
+    {
+        if (_module is null) return;
+        var width = await _module.InvokeAsync<double>("elementWidth", ".rd-cscroll");
+        if (width <= 0) return;
+        var avail = width - 24 /* padding */ - 22 /* thước dọc */ - 8 /* chừa mép */;
+        SetZoom(avail / (PaperW * MmToPx));
+    }
+
+    private async Task Notify()
+    {
+        await DefinitionChanged.InvokeAsync(Definition);
+        StateHasChanged();
+    }
+
+    // ---------------- menu chuột phải ----------------
+
+    [JSInvokable]
+    public async Task OnContextMenu(int band, int idx, double x, double y)
+    {
+        if (band >= 0 && band < Definition.Bands.Count)
+        {
+            _bandIdx = band;
+            _band = Definition.Bands[band];
+        }
+
+        if (idx >= 0)
+        {
+            var it = ItemAt(Definition, band, idx);
+            if (it != null)
+            {
+                if (!_sel.Contains(it))
+                {
+                    _sel.Clear();
+                    _sel.Add(it);
+                }
+                _item = it;
+            }
+        }
+        else
+        {
+            _item = _sel.FirstOrDefault();
+        }
+
+        _ctxX = x;
+        _ctxY = y;
+        _ctxOpen = true;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public void OnCloseContextMenu()
+    {
+        if (!_ctxOpen)
+            return;
+        _ctxOpen = false;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void CloseCtx() => _ctxOpen = false;
+
+    private bool CtxHasSel => _sel.Count > 0;
+    private bool CtxHasClip => _clipboard.Count > 0 && _band != null;
+    private bool CtxHasGroup => _sel.Any(i => !string.IsNullOrEmpty(i.Group));
+    private bool CtxAllLocked => _sel.Count > 0 && _sel.All(i => i.Locked);
+
+    private string CtxTitle()
+    {
+        if (_item != null)
+            return ItemLabel(_item);
+        if (_band != null)
+            return "Band " + _band.Kind;
+        return "Canvas";
+    }
+
+    private async Task CtxCopyAsync() { CloseCtx(); CopySelected(); await InvokeAsync(StateHasChanged); }
+    private async Task CtxCutAsync() { CloseCtx(); await OnCut(); }
+    private async Task CtxPasteAsync() { CloseCtx(); await PasteAsync(); }
+    private async Task CtxDuplicateAsync() { CloseCtx(); await DuplicateSelectedAsync(); }
+    private async Task CtxDeleteAsync() { CloseCtx(); await RemoveSelectedAsync(); }
+    private async Task CtxAlignAsync(AlignMode mode) { CloseCtx(); await AlignAsync(mode); }
+    private async Task CtxDistributeAsync(bool horizontal) { CloseCtx(); await DistributeAsync(horizontal); }
+    private async Task CtxGroupAsync() { CloseCtx(); await GroupSelectedAsync(); }
+    private async Task CtxUngroupAsync() { CloseCtx(); await UngroupSelectedAsync(); }
+    private async Task CtxLockAsync() { var lockIt = !CtxAllLocked; CloseCtx(); await LockSelectedAsync(lockIt); }
+
+    // ---------------- ribbon: định dạng nhanh ----------------
+
+    private IEnumerable<ReportItem> StyleTargets =>
+        _sel.Count > 0 ? _sel : (_item != null ? new[] { _item } : Enumerable.Empty<ReportItem>());
+
+    private bool HasStyleTarget => _sel.Count > 0 || _item != null;
+    private bool RibbonBold => HasStyleTarget && StyleTargets.All(i => i.Style.Bold);
+    private bool RibbonItalic => HasStyleTarget && StyleTargets.All(i => i.Style.Italic);
+    private bool RibbonBorder => HasStyleTarget && StyleTargets.All(i => i.Style.Border);
+    private string RibbonAlign => StyleTargets.Select(i => i.Style.Align).FirstOrDefault() ?? "left";
+    private double RibbonSize => StyleTargets.Select(i => i.Style.Size).FirstOrDefault();
+    private string? RibbonColor => StyleTargets.Select(i => i.Style.Color).FirstOrDefault();
+
+    private async Task SetStyleAsync(Action<ReportItem> apply, string key)
+    {
+        if (!HasStyleTarget)
+            return;
+        PushEdit(key);
+        foreach (var it in StyleTargets.ToList())
+            apply(it);
+        await Notify();
+    }
+
+    private async Task RibbonBoldAsync() { var v = !RibbonBold; await SetStyleAsync(i => i.Style.Bold = v, "style.bold"); }
+    private async Task RibbonItalicAsync() { var v = !RibbonItalic; await SetStyleAsync(i => i.Style.Italic = v, "style.italic"); }
+    private async Task RibbonBorderAsync() { var v = !RibbonBorder; await SetStyleAsync(i => i.Style.Border = v, "style.border"); }
+    private async Task RibbonAlignAsync(string align) => await SetStyleAsync(i => i.Style.Align = align, "style.align");
+    private async Task RibbonSizeAsync(double size)
+    {
+        if (size <= 0)
+            return;
+        await SetStyleAsync(i => i.Style.Size = size, "style.size");
+    }
+
+    private async Task RibbonColorAsync(string? hex) =>
+        await SetStyleAsync(i => i.Style.Color = string.IsNullOrWhiteSpace(hex) ? null : hex, "style.color");
+
+    // ------------------------------------------------------------ toolbar
+
+    private async Task SaveAsync()
+    {
+        if (_module is null)
+            return;
+        _coalesceKey = null;
+        await _module.InvokeVoidAsync("downloadText", Definition.Code + ".json", Definition.ToJson());
+    }
+
+    private async Task LoadAsync(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file is null)
+            return;
+        using var stream = file.OpenReadStream(2 * 1024 * 1024);
+        using var reader = new StreamReader(stream);
+        var json = await reader.ReadToEndAsync();
+        try
+        {
+            var loaded = ReportDefinition.FromJson(json);
+            _undo.Clear();
+            _redo.Clear();
+            _sel.Clear();
+            _item = null;
+            _paramText.Clear();
+            _paramDates.Clear();
+            _paramBool.Clear();
+            _param = null;
+            _paramIdx = -1;
+            Definition = loaded;
+            _bandIdx = loaded.Bands.Count > 0 ? 0 : -1;
+            _band = loaded.Bands.FirstOrDefault();
+            SyncParamValues();
+            await Notify();
+        }
+        catch (Exception ex)
+        {
+            if (_module != null)
+                await _module.InvokeVoidAsync("alertText", "JSON không hợp lệ: " + ex.Message);
+        }
+    }
+
+    private async Task PreviewAsync()
+    {
+        if (RenderPreview is null || _module is null)
+            return;
+        var missing = MissingRequiredParams();
+        if (missing is not null)
+        {
+            await _module.InvokeVoidAsync("alertText", "Thiếu tham số bắt buộc: " + missing);
+            return;
+        }
+        var bytes = await RenderPreview(Definition, CollectParamValues());
+        await _module.InvokeVoidAsync("showPdf", Convert.ToBase64String(bytes), "rd-pdf");
+    }
+
+    // ------------------------------------------------------------ xem trước WYSIWYG (nhiều trang)
+
+    private async Task PreviewPagesAsync()
+    {
+        if (RenderPreviewPages is null || _module is null)
+            return;
+        var missing = MissingRequiredParams();
+        if (missing is not null)
+        {
+            await _module.InvokeVoidAsync("alertText", "Thiếu tham số bắt buộc: " + missing);
+            return;
+        }
+
+        IReadOnlyList<byte[]> pages;
+        try
+        {
+            pages = await RenderPreviewPages(Definition, CollectParamValues());
+        }
+        catch (Exception ex)
+        {
+            await _module.InvokeVoidAsync("alertText", "Không render được xem trước: " + ex.Message);
+            return;
+        }
+
+        _previewPages.Clear();
+        foreach (var p in pages)
+            _previewPages.Add("data:image/png;base64," + Convert.ToBase64String(p));
+        _pvPage = 0;
+        _pvZoom = 1;
+        StateHasChanged();
+        try { await _pvRef.FocusAsync(); } catch { }
+    }
+
+    private string PreviewImg() =>
+        _previewPages.Count == 0 ? "" : _previewPages[Math.Clamp(_pvPage, 0, _previewPages.Count - 1)];
+
+    private void PreviewGo(int page) => _pvPage = Math.Clamp(page, 0, _previewPages.Count - 1);
+
+    private void PreviewSetZoom(double zoom) => _pvZoom = Math.Clamp(zoom, 0.25, 4);
+
+    private void PreviewZoom(double factor) => PreviewSetZoom(Math.Round(_pvZoom * factor, 3));
+
+    /// <summary>Đặt mức zoom sao cho bề rộng trang vừa khung xem (trừ lề).</summary>
+    private async Task PreviewFitAsync()
+    {
+        if (_module is null)
+            return;
+        var width = await _module.InvokeAsync<double>("elementWidth", ".rd-pvw-body");
+        var pagePx = PaperW * MmToPx;
+        if (width > 0 && pagePx > 0)
+            PreviewSetZoom((width - 32) / pagePx);
+    }
+
+    private void ClosePreview()
+    {
+        _previewPages.Clear();
+        _pvPage = 0;
+    }
+
+    private async Task OnPreviewKey(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "Escape": ClosePreview(); break;
+            case "ArrowLeft": PreviewGo(_pvPage - 1); break;
+            case "ArrowRight": PreviewGo(_pvPage + 1); break;
+            case "+": case "=": PreviewZoom(1.25); break;
+            case "-": PreviewZoom(1 / 1.25); break;
+        }
+        await StateHasChangedAsync();
+    }
+
+    private Task StateHasChangedAsync()
+    {
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+}

@@ -1,0 +1,135 @@
+@using System.Globalization
+
+@*
+    Lưới thuộc tính kiểu DevExpress Reports: ô tìm kiếm + các nhóm thu gọn được,
+    mỗi hàng là "tên thuộc tính | trình soạn giá trị". Dùng chung cho item / band / báo cáo.
+*@
+<div class="rpg">
+    <MudTextField T="string" Value="@_filter" ValueChanged="@OnFilter" Immediate="true"
+                  Placeholder="Tìm thuộc tính..." Margin="Margin.Dense" Variant="Variant.Outlined"
+                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                  Class="rpg-search" />
+
+    @{ var visible = Filter(); }
+    @if (visible.Count == 0)
+    {
+        <MudText Typo="Typo.caption" Class="rd-muted rpg-empty">Không có thuộc tính phù hợp.</MudText>
+    }
+    else
+    {
+        @foreach (var grp in visible.GroupBy(r => r.Category))
+        {
+            var cat = grp.Key;
+            var items = grp.ToList();
+            var collapsed = string.IsNullOrEmpty(_filter) && _collapsed.Contains(cat);
+            <div class="rpg-cat" @onclick="() => ToggleCat(cat)">
+                <span class="rpg-caret">@(collapsed ? "▸" : "▾")</span>
+                <span class="rpg-catname">@cat</span>
+                <span class="rpg-catcount">@items.Count</span>
+            </div>
+            @if (!collapsed)
+            {
+                @foreach (var row in items)
+                {
+                    <div class="rpg-row @(row.ReadOnly ? "ro" : "")" title="@row.Hint" data-prop="@row.Key">
+                        <span class="rpg-name">@row.Label</span>
+                        <div class="rpg-val">
+                            @switch (row.Kind)
+                            {
+                                case PropertyKind.Bool:
+                                    <MudCheckBox T="bool" Dense="true" Class="rpg-check"
+                                                 Value="@(row.Value is bool b && b)"
+                                                 ValueChanged="@(v => Edit(row, v))" />
+                                    break;
+                                case PropertyKind.Number:
+                                    <MudNumericField T="double" Margin="Margin.Dense" Variant="Variant.Outlined" Dense="true"
+                                                     Value="@ToDouble(row.Value)" ValueChanged="@(v => Edit(row, v))" />
+                                    break;
+                                case PropertyKind.Enum:
+                                    <MudSelect T="string" Margin="Margin.Dense" Variant="Variant.Outlined" Dense="true"
+                                               Value="@row.Value?.ToString()" ValueChanged="@(v => Edit(row, v))">
+                                        @foreach (var o in row.Options ?? Array.Empty<string>())
+                                        {
+                                            <MudSelectItem T="string" Value="@o">@o</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                    break;
+                                case PropertyKind.Color:
+                                    <div class="rpg-color">
+                                        <span class="rpg-swatch" style="background:@Swatch(row)"></span>
+                                        <MudTextField T="string" Margin="Margin.Dense" Variant="Variant.Outlined" Dense="true"
+                                                      Placeholder="@row.Placeholder" Value="@row.Value?.ToString()"
+                                                      ValueChanged="@(v => Edit(row, v))" />
+                                    </div>
+                                    break;
+                                case PropertyKind.ReadOnly:
+                                    <span class="rpg-ro">@row.Value</span>
+                                    break;
+                                default:
+                                    <MudTextField T="string" Margin="Margin.Dense" Variant="Variant.Outlined" Dense="true"
+                                                  Placeholder="@row.Placeholder" Value="@row.Value?.ToString()"
+                                                  ValueChanged="@(v => Edit(row, v))" />
+                                    break;
+                            }
+                        </div>
+                    </div>
+                }
+            }
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<PropertyRow>? Rows { get; set; }
+
+    /// <summary>Phát sau mỗi lần sửa giá trị (designer sẽ đẩy lịch sử + thông báo thay đổi).</summary>
+    [Parameter] public EventCallback<PropertyRow> Changed { get; set; }
+
+    private string _filter = "";
+    private readonly HashSet<string> _collapsed = new(StringComparer.OrdinalIgnoreCase);
+
+    private Task OnFilter(string? value)
+    {
+        _filter = value ?? "";
+        return Task.CompletedTask;
+    }
+
+    private List<PropertyRow> Filter()
+    {
+        var rows = Rows ?? (IReadOnlyList<PropertyRow>)Array.Empty<PropertyRow>();
+        var q = _filter?.Trim();
+        if (string.IsNullOrEmpty(q))
+            return rows.ToList();
+        return rows
+            .Where(r => r.Label.Contains(q, StringComparison.OrdinalIgnoreCase)
+                     || r.Category.Contains(q, StringComparison.OrdinalIgnoreCase)
+                     || r.Key.Contains(q, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    private void ToggleCat(string category)
+    {
+        if (!_collapsed.Add(category))
+            _collapsed.Remove(category);
+    }
+
+    private async Task Edit(PropertyRow row, object? value)
+    {
+        row.Set(value);
+        await Changed.InvokeAsync(row);
+    }
+
+    private static double ToDouble(object? value)
+    {
+        if (value is null)
+            return 0;
+        try { return Convert.ToDouble(value, CultureInfo.InvariantCulture); }
+        catch { return 0; }
+    }
+
+    private static string Swatch(PropertyRow row)
+    {
+        var c = string.IsNullOrWhiteSpace(row.Swatch) ? row.Value?.ToString() : row.Swatch;
+        return string.IsNullOrWhiteSpace(c) ? "transparent" : c;
+    }
+}

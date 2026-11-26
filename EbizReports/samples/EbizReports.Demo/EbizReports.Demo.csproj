@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\EbizReports.Core\EbizReports.Core.csproj" />
+    <ProjectReference Include="..\..\src\EbizReports.Data\EbizReports.Data.csproj" />
+    <ProjectReference Include="..\..\src\EbizReports.Rendering\EbizReports.Rendering.csproj" />
+  </ItemGroup>
+
+</Project>

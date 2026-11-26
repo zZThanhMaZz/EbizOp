@@ -1,0 +1,152 @@
+{
+  "Code": "02",
+  "Name": "02",
+  "Group": "",
+  "Description": "",
+  "IsSystem": false,
+  "SaveToClient": false,
+  "ForGridPrint": false,
+  "Version": 1,
+  "Paper": {
+    "Size": "A4",
+    "Orientation": "Portrait",
+    "WidthMm": 210,
+    "HeightMm": 297,
+    "Margins": {
+      "Top": 12,
+      "Right": 6,
+      "Bottom": 10,
+      "Left": 6
+    }
+  },
+  "DataSources": [
+    {
+      "Name": "Nguon1",
+      "Type": "sql",
+      "Ref": "",
+      "Params": [],
+      "Connection": "demo-sqlite"
+    }
+  ],
+  "Parameters": [],
+  "Sorting": [],
+  "Grouping": [],
+  "Bands": [
+    {
+      "Kind": "ReportHeader",
+      "Height": 10,
+      "Items": [],
+      "PageBreakBefore": false
+    },
+    {
+      "Kind": "PageHeader",
+      "Height": 10,
+      "Items": [],
+      "PageBreakBefore": false
+    },
+    {
+      "Kind": "GroupHeader",
+      "Height": 10,
+      "Items": [],
+      "PageBreakBefore": false
+    },
+    {
+      "Kind": "Detail",
+      "Height": 50,
+      "Items": [
+        {
+          "Kind": "Table",
+          "X": 0,
+          "Y": 0,
+          "W": 120,
+          "H": 40,
+          "Style": {
+            "Size": 9,
+            "Bold": false,
+            "Italic": false,
+            "Align": "left",
+            "Border": false
+          },
+          "Table": {
+            "Columns": [
+              {
+                "Header": "T\u00EAn",
+                "Width": 60,
+                "Binding": "Name",
+                "Align": "left",
+                "Aggregate": "none"
+              },
+              {
+                "Header": "SL",
+                "Width": 20,
+                "Binding": "Qty",
+                "Format": "N0",
+                "Align": "center",
+                "Aggregate": "sum"
+              },
+              {
+                "Header": "Th\u00E0nh ti\u1EC1n",
+                "Width": 40,
+                "Binding": "LineTotal",
+                "Format": "N0",
+                "Align": "right",
+                "Aggregate": "sum"
+              }
+            ],
+            "RowHeight": 6,
+            "ShowHeader": true,
+            "Borders": true,
+            "Zebra": false,
+            "HeaderBackground": "#EEEEEE",
+            "Footer": true,
+            "MaxRows": 0,
+            "Scope": "group"
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Text",
+          "X": 0,
+          "Y": 0,
+          "W": 40,
+          "H": 6,
+          "Text": "N\u1ED9i dung",
+          "Style": {
+            "Size": 9,
+            "Bold": false,
+            "Italic": false,
+            "Align": "left",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        }
+      ],
+      "PageBreakBefore": false
+    },
+    {
+      "Kind": "GroupFooter",
+      "Height": 10,
+      "Items": [],
+      "PageBreakBefore": false
+    },
+    {
+      "Kind": "PageFooter",
+      "Height": 10,
+      "Items": [],
+      "PageBreakBefore": false
+    },
+    {
+      "Kind": "ReportFooter",
+      "Height": 10,
+      "Items": [],
+      "PageBreakBefore": false
+    }
+  ],
+  "Outputs": [
+    "pdf",
+    "xlsx",
+    "csv"
+  ]
+}

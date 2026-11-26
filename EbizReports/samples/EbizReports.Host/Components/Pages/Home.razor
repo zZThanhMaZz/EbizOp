@@ -1,0 +1,285 @@
+@page "/"
+@page "/designer/{Code}"
+@using EbizReports.Core.Expressions
+@inject ReportService Reports
+@inject IReportDataProvider DataProvider
+@inject SqlConnectionRegistry SqlConnections
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+@inject IDialogService Dialogs
+
+<MudPaper Class="pa-2 mb-2 d-flex align-center gap-2" Elevation="0">
+    <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary"
+               OnClick="NewReportAsync">Tạo báo cáo mới</MudButton>
+    <MudSelect T="string" Label="Báo cáo" Value="@Code" ValueChanged="OnReportChanged"
+               Dense="true" Style="max-width:380px">
+        @foreach (var d in Reports.List())
+        {
+            <MudSelectItem T="string" Value="@d.Code">@d.Name (@d.Code)</MudSelectItem>
+        }
+    </MudSelect>
+    <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary"
+               Disabled="@(Definition is null)" OnClick="SaveToStore">Lưu vào kho</MudButton>
+    <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error"
+               Disabled="@(Definition is null || Reports.List().Count <= 1)" OnClick="DeleteFromStore">
+        Xoá khỏi kho
+    </MudButton>
+    <span class="rd-sep" style="width:1px;height:26px;background:#e0e0e0;margin:0 4px"></span>
+    <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Secondary"
+               Disabled="@(Definition is null)" OnClick="CloneAsync">Nhân bản</MudButton>
+    <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Secondary"
+               OnClick="BackupAsync">Sao lưu kho</MudButton>
+    <label class="rd-filebtn">
+        <InputFile id="rd-restore" OnChange="RestoreAsync" accept=".json" />
+        <span class="rd-filebtn-label">Khôi phục</span>
+    </label>
+    <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Secondary"
+               OnClick="ShowAuditAsync">Nhật ký</MudButton>
+    @if (_saveMsg is not null)
+    {
+        <MudText Typo="Typo.caption" Class="ml-2">@_saveMsg</MudText>
+    }
+</MudPaper>
+
+@if (Definition is not null)
+{
+    <ReportDesigner @key="DesignerKey"
+                    @bind-Definition="Definition"
+                    AvailableReports="Reports.List()"
+                    AvailableFields="AvailableFields"
+                    Connections="SqlConnections.Describe()"
+                    TestDataSource="TestDataSourceAsync"
+                    RenderPreview="RenderPreviewAsync"
+                    RenderPreviewPages="RenderPreviewPagesAsync"
+                    PreviewExpression="PreviewExpression" />
+}
+
+@code {
+    [Parameter] public string? Code { get; set; }
+
+    private ReportDefinition? Definition { get; set; }
+    private IReadOnlyList<ReportFieldInfo> AvailableFields = Array.Empty<ReportFieldInfo>();
+    private string? _saveMsg;
+    private int _reload;
+
+    /// <summary>Khoá dựng lại designer: đổi mã hoặc tăng _reload để ép tạo mới với dữ liệu nạp lại.</summary>
+    private string DesignerKey => $"{Code}#{_reload}";
+
+    protected override void OnParametersSet()
+    {
+        Code ??= Reports.List().FirstOrDefault()?.Code;
+        Definition = Code is null ? null : Reports.Find(Code);
+        RefreshFields();
+    }
+
+    private void OnReportChanged(string code)
+    {
+        Code = code;
+        Definition = Reports.Find(code);
+        RefreshFields();
+        _saveMsg = null;
+    }
+
+    /// <summary>Nạp danh sách trường khả dụng từ dữ liệu mẫu của report đang mở.</summary>
+    private void RefreshFields()
+    {
+        if (Definition is null)
+        {
+            AvailableFields = Array.Empty<ReportFieldInfo>();
+            return;
+        }
+        var values = new Dictionary<string, object?>();
+        try
+        {
+            var data = DataProvider.GetData(Definition, values);
+            AvailableFields = ReportFieldCatalog.Discover(Definition, data);
+        }
+        catch
+        {
+            AvailableFields = Array.Empty<ReportFieldInfo>();
+        }
+    }
+
+    /// <summary>Tạo báo cáo danh sách phiếu bán hàng mới (bố cục + tham số ngày) rồi mở designer.</summary>
+    private async Task NewReportAsync()
+    {
+        var dlg = await Dialogs.ShowAsync<NewReportDialog>("Tạo báo cáo mới", new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true,
+            CloseButton = true,
+        });
+        var result = await dlg.Result;
+        if (result is null || result.Canceled || result.Data is not NewReportRequest req)
+            return;
+
+        var code = req.Code.Trim();
+        if (string.IsNullOrWhiteSpace(code))
+            return;
+
+        if (Reports.Find(code) is not null)
+        {
+            _saveMsg = $"Mã “{code}” đã tồn tại — mở báo cáo hiện có.";
+            Nav.NavigateTo($"/designer/{code}");
+            return;
+        }
+
+        try
+        {
+            var def = SalesReportTemplate.Build(code, req.Name);
+            Reports.Save(def);
+            _saveMsg = $"Đã tạo “{code}”.";
+            Nav.NavigateTo($"/designer/{code}");
+        }
+        catch (ReportForbiddenException ex)
+        {
+            _saveMsg = ex.Message;
+        }
+    }
+
+    /// <summary>Chạy thử nguồn dữ liệu SQL cho designer (trả về cột + dòng mẫu).</summary>
+    private Task<SqlProbeResult> TestDataSourceAsync(ReportDataSource ds, ReportDefinition def)
+    {
+        var conn = SqlConnections.Resolve(ds.Connection);
+        var effective = ReportService.EffectiveParameters(def);
+        return Task.FromResult(SqlDataSourceExecutor.Probe(conn, ds.Sql, effective, maxRows: 20));
+    }
+
+    private void SaveToStore()
+    {
+        if (Definition is null)
+            return;
+        try
+        {
+            Reports.Save(Definition);
+            _saveMsg = $"Đã lưu “{Definition.Code}” vào kho.";
+        }
+        catch (ReportForbiddenException ex)
+        {
+            _saveMsg = ex.Message;
+        }
+    }
+
+    private async Task DeleteFromStore()
+    {
+        if (Definition is null)
+            return;
+
+        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Xoá báo cáo “{Definition.Code}” khỏi kho?");
+        if (!confirmed)
+            return;
+
+        var code = Definition.Code;
+        try
+        {
+            if (!Reports.Delete(code))
+            {
+                _saveMsg = $"Không tìm thấy “{code}” trong kho.";
+                return;
+            }
+            _saveMsg = $"Đã xoá “{code}” khỏi kho.";
+            // chuyển sang báo cáo còn lại
+            Code = Reports.List().FirstOrDefault()?.Code;
+            Definition = Code is null ? null : Reports.Find(Code);
+        }
+        catch (ReportForbiddenException ex)
+        {
+            _saveMsg = ex.Message;
+        }
+    }
+
+    private Task<byte[]> RenderPreviewAsync(ReportDefinition def, IReadOnlyDictionary<string, object?> values)
+        => Task.FromResult(Reports.Render(def, RenderFormat.Pdf, values, new ReportRenderOptions()));
+
+    private Task<IReadOnlyList<byte[]>> RenderPreviewPagesAsync(ReportDefinition def, IReadOnlyDictionary<string, object?> values)
+        => Task.FromResult(Reports.RenderPagesPng(def, values, new ReportRenderOptions()));
+
+    /// <summary>Xem trước biểu thức trên dữ liệu mẫu thật của report đang mở.</summary>
+    private string? PreviewExpression(string expression)
+    {
+        if (Definition is null)
+            return null;
+        var effective = ReportService.EffectiveParameters(Definition);
+        var data = DataProvider.GetData(Definition, effective);
+        foreach (var kv in effective)
+            data.SetParam(kv.Key, kv.Value);
+        var result = ExpressionInspector.Evaluate(expression, data);
+        if (!result.Ok)
+            throw new FormatException(result.Error ?? "Biểu thức không hợp lệ");
+        return result.Value;
+    }
+
+    // ------------------------------------------------------------ nhân bản / sao lưu / khôi phục
+
+    /// <summary>Nhân bản report đang mở thành mã mới (hỏi mã qua hộp thoại prompt).</summary>
+    private async Task CloneAsync()
+    {
+        if (Definition is null)
+            return;
+
+        var source = Definition.Code;
+        var newCode = await JS.InvokeAsync<string?>("prompt",
+            $"Mã cho bản sao của “{source}”:", source + "-copy");
+        if (string.IsNullOrWhiteSpace(newCode))
+            return;
+
+        try
+        {
+            // Lưu trạng thái hiện tại của bản gốc để bản sao phản ánh đúng màn hình.
+            Reports.Save(Definition);
+            var clone = Reports.Clone(source, newCode);
+            _saveMsg = $"Đã nhân bản “{source}” → “{clone.Code}”.";
+            Nav.NavigateTo($"/designer/{clone.Code}");
+        }
+        catch (Exception ex) when (ex is ReportForbiddenException or ReportNotFoundException)
+        {
+            _saveMsg = ex.Message;
+        }
+    }
+
+    /// <summary>Xuất toàn bộ kho thành một file JSON để sao lưu.</summary>
+    /// <summary>Mở hộp thoại nhật ký thao tác gần đây.</summary>
+    private Task ShowAuditAsync() =>
+        Dialogs.ShowAsync<AuditDialog>("Nhật ký thao tác", new DialogOptions
+        {
+            MaxWidth = MaxWidth.Large,
+            FullWidth = true,
+            CloseButton = true,
+        });
+
+    private async Task BackupAsync()
+    {
+        var json = Reports.ExportBackup();
+        var count = Reports.List().Count;
+        var name = $"reports-backup-{DateTime.Now:yyyyMMdd-HHmmss}.json";
+        await JS.InvokeVoidAsync("ebReports.downloadText", name, json);
+        _saveMsg = $"Đã xuất sao lưu {count} báo cáo → {name}.";
+    }
+
+    /// <summary>Khôi phục kho từ file JSON (hỏi có ghi đè các mã trùng hay không).</summary>
+    private async Task RestoreAsync(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            using var stream = e.File.OpenReadStream(8 * 1024 * 1024);
+            using var reader = new StreamReader(stream);
+            var json = await reader.ReadToEndAsync();
+
+            var overwrite = await JS.InvokeAsync<bool>("confirm",
+                "Ghi đè các báo cáo trùng mã?\nOK = ghi đè · Cancel = giữ bản hiện có.");
+            var result = Reports.ImportBackup(json, overwrite);
+            _saveMsg = "Khôi phục: " + result.Summary;
+
+            // Report đang mở có thể đã bị ghi đè hoặc không còn trong kho → nạp lại.
+            if (Code is null || Reports.Find(Code) is null)
+                Code = Reports.List().FirstOrDefault()?.Code;
+            Definition = Code is null ? null : Reports.Find(Code);
+            RefreshFields();
+            _reload++; // dựng lại designer với instance đã nạp lại từ kho
+        }
+        catch (Exception ex)
+        {
+            _saveMsg = "Khôi phục thất bại: " + ex.Message;
+        }
+    }
+}

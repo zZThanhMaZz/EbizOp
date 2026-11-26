@@ -1,0 +1,456 @@
+{
+  "Code": "01",
+  "Name": "B\u00E1o c\u00E1o t\u1ED3n kho",
+  "Version": 1,
+  "Paper": {
+    "Size": "A4",
+    "Orientation": "Portrait",
+    "WidthMm": 210,
+    "HeightMm": 297,
+    "Margins": {
+      "Top": 12,
+      "Right": 6,
+      "Bottom": 10,
+      "Left": 6
+    }
+  },
+  "DataSources": [],
+  "Parameters": [
+    {
+      "Name": "TuNgay",
+      "Type": "Date",
+      "Label": "T\u1EEB ng\u00E0y",
+      "Required": false,
+      "Default": "2026-01-01"
+    },
+    {
+      "Name": "DenNgay",
+      "Type": "Date",
+      "Label": "\u0110\u1EBFn ng\u00E0y",
+      "Required": false,
+      "Default": "2026-03-31"
+    }
+  ],
+  "Sorting": [],
+  "Grouping": [],
+  "Bands": [
+    {
+      "Kind": "PageHeader",
+      "Height": 16,
+      "Items": [
+        {
+          "Kind": "Text",
+          "X": 0,
+          "Y": 0,
+          "W": 198,
+          "H": 8,
+          "Text": "DANH S\u00C1CH PHI\u1EBEU B\u00C1N H\u00C0NG",
+          "Style": {
+            "Size": 14,
+            "Bold": true,
+            "Italic": false,
+            "Align": "left",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Text",
+          "X": 0,
+          "Y": 9,
+          "W": 32,
+          "H": 5,
+          "Text": "T\u1EEB ng\u00E0y:",
+          "Style": {
+            "Size": 9,
+            "Bold": false,
+            "Italic": false,
+            "Align": "right",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Expression",
+          "X": 34,
+          "Y": 8,
+          "W": 36,
+          "H": 6,
+          "Expression": "TuNgay",
+          "Format": "dd/MM/yyyy",
+          "Style": {
+            "Size": 9,
+            "Bold": false,
+            "Italic": false,
+            "Align": "left",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Text",
+          "X": 74,
+          "Y": 9,
+          "W": 22,
+          "H": 5,
+          "Text": "\u0111\u1EBFn ng\u00E0y:",
+          "Style": {
+            "Size": 9,
+            "Bold": false,
+            "Italic": false,
+            "Align": "right",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Expression",
+          "X": 98,
+          "Y": 8,
+          "W": 36,
+          "H": 6,
+          "Expression": "DenNgay",
+          "Format": "dd/MM/yyyy",
+          "Style": {
+            "Size": 9,
+            "Bold": false,
+            "Italic": false,
+            "Align": "left",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        }
+      ],
+      "PageBreakBefore": false
+    },
+    {
+      "Kind": "ReportHeader",
+      "Height": 8,
+      "Items": [
+        {
+          "Kind": "Text",
+          "X": 0,
+          "Y": 1,
+          "W": 28,
+          "H": 6,
+          "Text": "M\u00E3 phi\u1EBFu",
+          "Style": {
+            "Size": 8,
+            "Bold": true,
+            "Italic": false,
+            "Align": "left",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Text",
+          "X": 28,
+          "Y": 1,
+          "W": 24,
+          "H": 6,
+          "Text": "Ng\u00E0y b\u00E1n",
+          "Style": {
+            "Size": 8,
+            "Bold": true,
+            "Italic": false,
+            "Align": "center",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Text",
+          "X": 52,
+          "Y": 1,
+          "W": 56,
+          "H": 6,
+          "Text": "Kh\u00E1ch h\u00E0ng",
+          "Style": {
+            "Size": 8,
+            "Bold": true,
+            "Italic": false,
+            "Align": "left",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Text",
+          "X": 108,
+          "Y": 1,
+          "W": 30,
+          "H": 6,
+          "Text": "Nh\u00E2n vi\u00EAn",
+          "Style": {
+            "Size": 8,
+            "Bold": true,
+            "Italic": false,
+            "Align": "left",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Text",
+          "X": 138,
+          "Y": 1,
+          "W": 32,
+          "H": 6,
+          "Text": "Tr\u1EA1ng th\u00E1i",
+          "Style": {
+            "Size": 8,
+            "Bold": true,
+            "Italic": false,
+            "Align": "center",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Text",
+          "X": 170,
+          "Y": 1,
+          "W": 28,
+          "H": 6,
+          "Text": "T\u1ED5ng ti\u1EC1n",
+          "Style": {
+            "Size": 8,
+            "Bold": true,
+            "Italic": false,
+            "Align": "right",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Line",
+          "X": 0,
+          "Y": 7,
+          "W": 198,
+          "H": 1,
+          "Style": {
+            "Size": 0.6,
+            "Bold": false,
+            "Italic": false,
+            "Align": "left",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        }
+      ],
+      "PageBreakBefore": false
+    },
+    {
+      "Kind": "Detail",
+      "Height": 7,
+      "Items": [
+        {
+          "Kind": "Field",
+          "X": 0,
+          "Y": 0,
+          "W": 28,
+          "H": 7,
+          "Binding": "MaPhieu",
+          "Style": {
+            "Size": 8,
+            "Bold": false,
+            "Italic": false,
+            "Align": "left",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Field",
+          "X": 28,
+          "Y": 0,
+          "W": 24,
+          "H": 7,
+          "Binding": "NgayBan",
+          "Format": "dd/MM/yyyy",
+          "Style": {
+            "Size": 8,
+            "Bold": false,
+            "Italic": false,
+            "Align": "center",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Field",
+          "X": 52,
+          "Y": 0,
+          "W": 56,
+          "H": 7,
+          "Binding": "KhachHang",
+          "Style": {
+            "Size": 8,
+            "Bold": false,
+            "Italic": false,
+            "Align": "left",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Field",
+          "X": 108,
+          "Y": 0,
+          "W": 30,
+          "H": 7,
+          "Binding": "NhanVien",
+          "Style": {
+            "Size": 8,
+            "Bold": false,
+            "Italic": false,
+            "Align": "left",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Field",
+          "X": 138,
+          "Y": 0,
+          "W": 32,
+          "H": 7,
+          "Binding": "TrangThai",
+          "Style": {
+            "Size": 8,
+            "Bold": false,
+            "Italic": false,
+            "Align": "center",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Field",
+          "X": 170,
+          "Y": 0,
+          "W": 28,
+          "H": 7,
+          "Binding": "TongTien",
+          "Format": "N0",
+          "Style": {
+            "Size": 8,
+            "Bold": false,
+            "Italic": false,
+            "Align": "right",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        }
+      ],
+      "PageBreakBefore": false
+    },
+    {
+      "Kind": "ReportFooter",
+      "Height": 12,
+      "Items": [
+        {
+          "Kind": "Line",
+          "X": 0,
+          "Y": 1,
+          "W": 198,
+          "H": 1,
+          "Style": {
+            "Size": 0.8,
+            "Bold": false,
+            "Italic": false,
+            "Align": "left",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Text",
+          "X": 110,
+          "Y": 3,
+          "W": 58,
+          "H": 7,
+          "Text": "T\u1ED4NG C\u1ED8NG",
+          "Style": {
+            "Size": 10,
+            "Bold": true,
+            "Italic": false,
+            "Align": "right",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        },
+        {
+          "Kind": "Expression",
+          "X": 170,
+          "Y": 3,
+          "W": 28,
+          "H": 7,
+          "Expression": "Sum(TongTien)",
+          "Format": "N0",
+          "Style": {
+            "Size": 10,
+            "Bold": true,
+            "Italic": false,
+            "Align": "right",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        }
+      ],
+      "PageBreakBefore": false
+    },
+    {
+      "Kind": "PageFooter",
+      "Height": 6,
+      "Items": [
+        {
+          "Kind": "PageNumber",
+          "X": 0,
+          "Y": 0,
+          "W": 198,
+          "H": 6,
+          "Text": "Trang {Page}/{Pages}",
+          "Style": {
+            "Size": 7,
+            "Bold": false,
+            "Italic": false,
+            "Align": "center",
+            "Color": "#888888",
+            "Border": false
+          },
+          "StyleRules": [],
+          "Locked": false
+        }
+      ],
+      "PageBreakBefore": false
+    }
+  ],
+  "Outputs": [
+    "pdf",
+    "xlsx",
+    "csv"
+  ]
+}

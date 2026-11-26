@@ -1,0 +1,53 @@
+/* _content/EbizOp.Web/Components/Layout/MainLayout.razor.rz.scp.css */
+/* (đã xóa #blazor-error-ui màu lightyellow — style mới nằm trong wwwroot/app.css) */
+/* _content/EbizOp.Web/Components/Pages/Inventory/Receipts.razor.rz.scp.css */
+/* <style> trong .razor KHÔNG được bundle scoped → phải nằm ở file .razor.css này. */
+.mono[b-na4a3olm9l] { font-family: Consolas, monospace; }
+.muted[b-na4a3olm9l] { opacity: .65; }
+.grow[b-na4a3olm9l] { flex: 1; }
+/* title chiếm hết hàng, cụm 2 nút xuống hàng riêng nguyên cụm */
+.rcpt-acts[b-na4a3olm9l] { flex-wrap: nowrap; flex-basis: 100%; justify-content: flex-end; }
+/* KH 1.3: phiếu đã hủy vẫn nằm trong danh sách, tô đỏ */
+.status-pill[b-na4a3olm9l] { padding: 1px 8px; border-radius: 999px; font-size: 11px; margin-left: 6px; }
+.status-pill.cancelled[b-na4a3olm9l] { background: #fee2e2; color: #b91c1c; font-weight: 600; }
+tr.cancelled-row td[b-na4a3olm9l] { opacity: .85; }
+tr.cancelled-row td:first-child[b-na4a3olm9l] { box-shadow: inset 3px 0 0 #dc2626; }
+.col-head[b-na4a3olm9l] { font-size: 11px; text-transform: uppercase; letter-spacing: .3px; }
+.col-head span[b-na4a3olm9l] { padding-left: 14px; }
+/* màn hẹp: ẩn tiêu đề cột, xếp ô 2-3/hàng; head NCC/kho/ghi chú 100% một cột */
+@media (max-width: 640px) {
+    .col-head[b-na4a3olm9l] { display: none !important; }
+    .rcpt-head-in > *[b-na4a3olm9l] { flex: 1 1 100% !important; min-width: 0 !important; }
+    /* width/flex inline trên .rcpt-cell thắng class → ép lại trong media */
+    [data-testid^="rcpt-line-"] > .rcpt-cell[b-na4a3olm9l] {
+        min-width: 0 !important; max-width: none !important;
+        width: auto !important; flex: 1 1 45% !important;
+    }
+    [data-testid^="rcpt-line-"] > .rcpt-cell:first-child[b-na4a3olm9l] { flex: 1 1 100% !important; }
+    [data-testid^="line-variant-"][b-na4a3olm9l], [data-testid^="line-unit-"][b-na4a3olm9l], [data-testid^="line-qty-"][b-na4a3olm9l], [data-testid^="line-price-"][b-na4a3olm9l] { width: 100% !important; max-width: none !important; }
+    .rcpt-foot[b-na4a3olm9l] { flex-wrap: wrap; }
+}
+/* _content/EbizOp.Web/Components/Pages/Inventory/Transfers.razor.rz.scp.css */
+/* <style> trong .razor KHÔNG được bundle scoped → phải nằm ở file .razor.css này. */
+.mono[b-vyj05d1a3c] { font-family: Consolas, monospace; }
+/* KH 1.4: phiếu đã hủy/xóa vẫn nằm trong danh sách, tô đỏ */
+.status-pill[b-vyj05d1a3c] { padding: 1px 8px; border-radius: 999px; font-size: 11px; }
+.status-pill.pending[b-vyj05d1a3c] { background: #fef3c7; color: #92400e; }
+.status-pill.done[b-vyj05d1a3c] { background: #dcfce7; color: #166534; }
+.status-pill.cancelled[b-vyj05d1a3c] { background: #fee2e2; color: #b91c1c; font-weight: 600; }
+tr.cancelled-row td[b-vyj05d1a3c] { opacity: .85; }
+tr.cancelled-row td:first-child[b-vyj05d1a3c] { box-shadow: inset 3px 0 0 #dc2626; }
+tr.deleted-row td[b-vyj05d1a3c] { opacity: .6; }
+.muted[b-vyj05d1a3c] { opacity: .65; }
+.grow[b-vyj05d1a3c] { flex: 1; }
+/* vỡ layout mobile: nút 100% một cột, ô dòng 2-3 ô/hàng */
+@media (max-width: 640px) {
+    [data-testid="btn-new-transfer"][b-vyj05d1a3c] { flex: 1 1 100%; }
+    /* width/flex inline trên .tr-cell thắng class → ép lại trong media */
+    [data-testid^="tr-line-"] > .tr-cell[b-vyj05d1a3c] {
+        min-width: 0 !important; max-width: none !important;
+        width: auto !important; flex: 1 1 45% !important;
+    }
+    [data-testid^="tr-line-"] > .tr-cell:first-child[b-vyj05d1a3c] { flex: 1 1 100% !important; }
+    [data-testid^="tr-variant-"][b-vyj05d1a3c], [data-testid^="tr-unit-"][b-vyj05d1a3c], [data-testid^="tr-qty-"][b-vyj05d1a3c] { width: 100% !important; max-width: none !important; }
+}

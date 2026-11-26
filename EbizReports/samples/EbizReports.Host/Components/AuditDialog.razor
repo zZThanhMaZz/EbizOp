@@ -1,0 +1,52 @@
+@inject IReportAuditStore Audit
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Nhật ký thao tác (@Entries.Count mục gần nhất)</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (Entries.Count == 0)
+        {
+            <MudText Typo="Typo.body2" Class="rd-muted">Chưa có thao tác nào được ghi.</MudText>
+        }
+        else
+        {
+            <MudSimpleTable Dense="true" Hover="true" Bordered="true" Style="font-size:12px">
+                <thead>
+                    <tr>
+                        <th>Thời gian</th>
+                        <th>Thao tác</th>
+                        <th>Mã</th>
+                        <th>Ver</th>
+                        <th>Người dùng</th>
+                        <th>Chi tiết</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var e in Entries)
+                    {
+                        <tr>
+                            <td>@e.TimestampUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</td>
+                            <td>@e.Action</td>
+                            <td>@e.Code</td>
+                            <td>@(e.Version?.ToString() ?? "")</td>
+                            <td>@(e.User ?? "")</td>
+                            <td>@(e.Detail ?? "")</td>
+                        </tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="() => MudDialog.Close()">Đóng</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    private IReadOnlyList<ReportAuditEntry> Entries { get; set; } = Array.Empty<ReportAuditEntry>();
+
+    protected override void OnInitialized() => Entries = Audit.Recent(100);
+}
